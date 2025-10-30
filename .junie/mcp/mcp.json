@@ -1,0 +1,20 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "/Users/mason/Library/Application Support/Herd/bin/php84",
+            "args": [
+                "/Users/mason/Sites/calorie-tracker/artisan",
+                "boost:mcp"
+            ]
+        },
+        "herd": {
+            "command": "/Users/mason/Library/Application Support/Herd/bin/php84",
+            "args": [
+                "/Applications/Herd.app/Contents/Resources/herd-mcp.phar"
+            ],
+            "env": {
+                "SITE_PATH": "/Users/mason/Sites/calorie-tracker"
+            }
+        }
+    }
+}
