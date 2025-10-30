@@ -3,9 +3,10 @@ import FoodBarcodeController from '@/actions/App/Http/Controllers/FoodBarcodeCon
 import CalorieBurnEntryController from '@/actions/App/Http/Controllers/CalorieBurnEntryController';
 import FoodEntryController from '@/actions/App/Http/Controllers/FoodEntryController';
 import BarcodeScanner from '@/Pages/Dashboard/components/BarcodeScanner.vue';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import InputError from '@/components/InputError.vue';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import {Badge} from '@/components/ui/badge';
+import {Button} from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -14,14 +15,14 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {Input} from '@/components/ui/input';
+import {Label} from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import {Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger} from '@/components/ui/sheet';
 import nutrition from '@/routes/nutrition';
-import { dashboard } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import {dashboard} from '@/routes';
+import {type BreadcrumbItem} from '@/types';
+import {Head, Link, router, useForm} from '@inertiajs/vue3';
 import {
     ArrowRight,
     Calendar,
@@ -33,8 +34,8 @@ import {
     Trash2,
     UtensilsCrossed,
 } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
-import { toast } from 'vue-sonner';
+import {computed, ref, watch} from 'vue';
+import {toast} from 'vue-sonner';
 
 type MacroKey = 'protein' | 'carb' | 'fat';
 
@@ -272,8 +273,8 @@ const macroCircleStyle = (percentage: number | null): MacroCircleStyle => {
 };
 
 const servingUnitOptions = [
-    { label: 'grams (g)', value: 'g' },
-    { label: 'milliliters (ml)', value: 'ml' },
+    {label: 'grams (g)', value: 'g'},
+    {label: 'milliliters (ml)', value: 'ml'},
 ];
 
 watch(
@@ -283,7 +284,7 @@ watch(
             toast.success(newStatus);
         }
     },
-    { immediate: true },
+    {immediate: true},
 );
 
 watch(
@@ -365,20 +366,20 @@ const submitManual = () => {
             const servingSizeValue = Number(data.serving_size_value) || 0;
             const servingUnit = data.serving_unit || 'g';
 
-                const payload: Record<string, unknown> = {
-                    name: data.name,
-                    consumed_on: data.consumed_on,
-                    serving_unit:
-                        servingSizeValue > 0
-                            ? `${servingSizeValue} ${servingUnit}`
-                            : servingUnit,
-                    serving_unit_raw: servingUnit,
-                    serving_size_value: servingSizeValue > 0 ? servingSizeValue : null,
-                    quantity,
-                    calories: (Number(data.calories) || 0) * quantity,
-                    protein_grams: (Number(data.protein_grams) || 0) * quantity,
-                    carb_grams: (Number(data.carb_grams) || 0) * quantity,
-                    fat_grams: (Number(data.fat_grams) || 0) * quantity,
+            const payload: Record<string, unknown> = {
+                name: data.name,
+                consumed_on: data.consumed_on,
+                serving_unit:
+                    servingSizeValue > 0
+                        ? `${servingSizeValue} ${servingUnit}`
+                        : servingUnit,
+                serving_unit_raw: servingUnit,
+                serving_size_value: servingSizeValue > 0 ? servingSizeValue : null,
+                quantity,
+                calories: (Number(data.calories) || 0) * quantity,
+                protein_grams: (Number(data.protein_grams) || 0) * quantity,
+                carb_grams: (Number(data.carb_grams) || 0) * quantity,
+                fat_grams: (Number(data.fat_grams) || 0) * quantity,
                 source: data.source,
             };
 
@@ -457,7 +458,7 @@ const handleBarcodeDetected = async (value: string) => {
 
     try {
         const response = await fetch(
-            FoodBarcodeController({ barcode: trimmed }).url,
+            FoodBarcodeController({barcode: trimmed}).url,
             {
                 headers: {
                     Accept: 'application/json',
@@ -590,13 +591,13 @@ watch(
         manualForm.consumed_on = value;
         burnForm.recorded_on = value;
     },
-    { immediate: true },
+    {immediate: true},
 );
 </script>
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head title="Dashboard" />
+        <Head title="Dashboard"/>
 
         <div class="flex flex-col gap-6 p-4">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -609,7 +610,8 @@ watch(
                             class="text-primary underline decoration-dotted underline-offset-4"
                         >
                             macro settings
-                        </Link>.
+                        </Link>
+                        .
                     </p>
                 </div>
 
@@ -621,11 +623,11 @@ watch(
                         @click="goToPrevious"
                         aria-label="Previous day"
                     >
-                        <ChevronLeft class="size-4" />
+                        <ChevronLeft class="size-4"/>
                     </Button>
 
                     <div class="relative flex items-center gap-2">
-                        <Calendar class="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+                        <Calendar class="pointer-events-none absolute left-3 size-4 text-muted-foreground"/>
                         <Input
                             type="date"
                             v-model="selectedDateInput"
@@ -642,7 +644,7 @@ watch(
                         :disabled="summary.date.isToday"
                         aria-label="Next day"
                     >
-                        <ChevronRight class="size-4" />
+                        <ChevronRight class="size-4"/>
                     </Button>
                 </div>
             </div>
@@ -731,7 +733,7 @@ watch(
                             class="inline-flex items-center gap-2 text-primary"
                         >
                             Update macros
-                            <ArrowRight class="size-4" />
+                            <ArrowRight class="size-4"/>
                         </Link>
                     </CardFooter>
                 </Card>
@@ -777,9 +779,11 @@ watch(
                                     text-anchor="middle"
                                     class="fill-foreground text-lg font-semibold"
                                 >
-                                    {{ macro.progress.percentage !== null
-                                        ? percentageFormatter.format(Math.min(macro.progress.percentage, 999.9))
-                                        : '—' }}%
+                                    {{
+                                        macro.progress.percentage !== null
+                                            ? percentageFormatter.format(Math.min(macro.progress.percentage, 999.9))
+                                            : '—'
+                                    }}%
                                 </text>
                             </svg>
                         </div>
@@ -803,56 +807,49 @@ watch(
                 </Card>
             </div>
 
-            <div class="grid gap-4">
-                <Card>
-                    <CardHeader>
-                        <CardTitle class="flex items-center justify-between">
+            <Sheet>
+                <SheetTrigger as-child>
+                    <Button>
+                    Log food
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom">
+                    <SheetHeader>
+                        <SheetTitle>
                             <span class="flex items-center gap-2">
-                                <UtensilsCrossed class="size-5 text-primary" />
+                                <UtensilsCrossed class="size-5 text-primary"/>
                                 Log intake
                             </span>
-                            <div class="rounded-md bg-muted p-1">
-                                <div class="flex gap-1">
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        :variant="activeIntakeTab === 'library' ? 'default' : 'ghost'"
-                                        @click="activeIntakeTab = 'library'"
-                                    >
-                                        Library
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        :variant="activeIntakeTab === 'manual' ? 'default' : 'ghost'"
-                                        @click="activeIntakeTab = 'manual'"
-                                    >
-                                        Manual
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardTitle>
-                        <CardDescription>
+                        </SheetTitle>
+                        <SheetDescription>
                             Scan a barcode or pick from your food library. You can also enter macros manually.
-                        </CardDescription>
-                    </CardHeader>
+                        </SheetDescription>
+                        <div class="pt-4">
 
-                    <CardContent class="space-y-6">
-                        <div v-if="activeIntakeTab === 'library'" class="space-y-6">
+                            <Tabs v-model="activeIntakeTab" class="w-full">
+                                <TabsList class="grid w-full grid-cols-2">
+                                    <TabsTrigger value="library">
+                                        Library
+                                    </TabsTrigger>
+                                    <TabsTrigger value="manual">
+                                        Manual
+                                    </TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        </div>
+                    </SheetHeader>
+                    <div class="p-4 pt-0">
+                        <div v-if="activeIntakeTab === 'library'" class="space-y-4">
                             <div class="flex flex-wrap items-center gap-2">
                                 <Button
+                                    class="w-full"
                                     type="button"
-                                    size="sm"
-                                    variant="secondary"
-                                    class="inline-flex items-center gap-2"
+                                    variant="default"
                                     @click="toggleScanner"
                                 >
-                                    <Scan class="size-4" />
+                                    <Scan class="size-4"/>
                                     {{ scannerActive ? 'Stop scanning' : 'Scan barcode' }}
                                 </Button>
-                                <p class="text-sm text-muted-foreground">
-                                    Use your camera to fill in matching foods automatically.
-                                </p>
                             </div>
 
                             <BarcodeScanner
@@ -883,12 +880,12 @@ watch(
                                             </span>
                                         </option>
                                     </select>
-                                    <InputError :message="libraryForm.errors.food_id" />
+                                    <InputError :message="libraryForm.errors.food_id"/>
                                 </div>
 
                                 <div class="grid gap-2 sm:grid-cols-2">
                                     <div class="grid gap-2">
-                                    <Label for="library_quantity">Number of servings</Label>
+                                        <Label for="library_quantity">Number of servings</Label>
                                         <Input
                                             id="library_quantity"
                                             v-model="libraryForm.quantity"
@@ -896,9 +893,9 @@ watch(
                                             type="number"
                                             step="0.01"
                                             min="0.1"
-                                        required
-                                    />
-                                        <InputError :message="libraryForm.errors.quantity" />
+                                            required
+                                        />
+                                        <InputError :message="libraryForm.errors.quantity"/>
                                         <p
                                             v-if="referenceAmountLabel"
                                             class="text-xs text-muted-foreground"
@@ -917,7 +914,7 @@ watch(
                                             type="date"
                                             required
                                         />
-                                        <InputError :message="libraryForm.errors.consumed_on" />
+                                        <InputError :message="libraryForm.errors.consumed_on"/>
                                     </div>
                                 </div>
 
@@ -934,13 +931,13 @@ watch(
                                 <div class="flex flex-wrap items-center gap-3">
                                     <Button
                                         type="submit"
-                                        class="inline-flex items-center gap-2"
+                                        class="w-full"
                                         :disabled="libraryForm.processing"
                                     >
-                                        <PlusCircle class="size-4" />
+                                        <PlusCircle class="size-4"/>
                                         Log entry
                                     </Button>
-                                    <InputError :message="libraryForm.errors.source" />
+                                    <InputError :message="libraryForm.errors.source"/>
                                 </div>
                             </form>
                         </div>
@@ -957,7 +954,7 @@ watch(
                                         placeholder="Grilled chicken"
                                         required
                                     />
-                                    <InputError :message="manualForm.errors.name" />
+                                    <InputError :message="manualForm.errors.name"/>
                                 </div>
 
                                 <div class="grid gap-2 sm:grid-cols-2">
@@ -970,9 +967,9 @@ watch(
                                             type="number"
                                             step="0.01"
                                             min="0.1"
-                                        required
-                                    />
-                                        <InputError :message="manualForm.errors.quantity" />
+                                            required
+                                        />
+                                        <InputError :message="manualForm.errors.quantity"/>
                                         <p
                                             v-if="referenceAmountLabel"
                                             class="text-xs text-muted-foreground"
@@ -1008,7 +1005,7 @@ watch(
                                                 </option>
                                             </select>
                                         </div>
-                                        <InputError :message="manualForm.errors.serving_unit" />
+                                        <InputError :message="manualForm.errors.serving_unit"/>
                                     </div>
                                 </div>
 
@@ -1024,7 +1021,7 @@ watch(
                                             min="0"
                                             required
                                         />
-                                        <InputError :message="manualForm.errors.calories" />
+                                        <InputError :message="manualForm.errors.calories"/>
                                     </div>
                                     <div class="grid gap-2">
                                         <Label for="manual_protein">Protein (g)</Label>
@@ -1037,7 +1034,7 @@ watch(
                                             min="0"
                                             required
                                         />
-                                        <InputError :message="manualForm.errors.protein_grams" />
+                                        <InputError :message="manualForm.errors.protein_grams"/>
                                     </div>
                                     <div class="grid gap-2">
                                         <Label for="manual_carb">Carbs (g)</Label>
@@ -1050,7 +1047,7 @@ watch(
                                             min="0"
                                             required
                                         />
-                                        <InputError :message="manualForm.errors.carb_grams" />
+                                        <InputError :message="manualForm.errors.carb_grams"/>
                                     </div>
                                     <div class="grid gap-2">
                                         <Label for="manual_fat">Fat (g)</Label>
@@ -1063,7 +1060,7 @@ watch(
                                             min="0"
                                             required
                                         />
-                                        <InputError :message="manualForm.errors.fat_grams" />
+                                        <InputError :message="manualForm.errors.fat_grams"/>
                                     </div>
                                 </div>
 
@@ -1077,7 +1074,7 @@ watch(
                                             type="date"
                                             required
                                         />
-                                        <InputError :message="manualForm.errors.consumed_on" />
+                                        <InputError :message="manualForm.errors.consumed_on"/>
                                     </div>
                                     <div class="grid gap-2">
                                         <Label for="manual_barcode">Barcode (optional)</Label>
@@ -1087,7 +1084,7 @@ watch(
                                             name="barcode"
                                             type="text"
                                         />
-                                        <InputError :message="manualForm.errors.barcode" />
+                                        <InputError :message="manualForm.errors.barcode"/>
                                     </div>
                                 </div>
 
@@ -1106,21 +1103,21 @@ watch(
                                         class="inline-flex items-center gap-2"
                                         :disabled="manualForm.processing"
                                     >
-                                        <PlusCircle class="size-4" />
+                                        <PlusCircle class="size-4"/>
                                         Log entry
                                     </Button>
                                 </div>
                             </form>
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    </div>
+                </SheetContent>
+            </Sheet>
 
             <div class="grid gap-4 lg:grid-cols-3">
                 <Card class="lg:col-span-2">
                     <CardHeader>
                         <CardTitle class="flex items-center gap-2">
-                            <Flame class="size-5 text-primary" />
+                            <Flame class="size-5 text-primary"/>
                             Calories burned
                         </CardTitle>
                         <CardDescription>
@@ -1139,7 +1136,7 @@ watch(
                                     min="0"
                                     required
                                 />
-                                <InputError :message="burnForm.errors.calories" />
+                                <InputError :message="burnForm.errors.calories"/>
                             </div>
                             <div class="grid gap-2">
                                 <Label for="burn_recorded">Date</Label>
@@ -1150,7 +1147,7 @@ watch(
                                     type="date"
                                     required
                                 />
-                                <InputError :message="burnForm.errors.recorded_on" />
+                                <InputError :message="burnForm.errors.recorded_on"/>
                             </div>
                             <div class="grid gap-2 sm:col-span-2">
                                 <Label for="burn_description">Notes (optional)</Label>
@@ -1161,7 +1158,7 @@ watch(
                                     type="text"
                                     placeholder="Cycling, 30 minutes"
                                 />
-                                <InputError :message="burnForm.errors.description" />
+                                <InputError :message="burnForm.errors.description"/>
                             </div>
                             <div class="sm:col-span-2">
                                 <Button
@@ -1169,7 +1166,7 @@ watch(
                                     class="inline-flex items-center gap-2"
                                     :disabled="burnForm.processing"
                                 >
-                                    <Flame class="size-4" />
+                                    <Flame class="size-4"/>
                                     Log calories burned
                                 </Button>
                             </div>
@@ -1284,7 +1281,7 @@ watch(
                                         class="inline-flex items-center gap-2 text-destructive"
                                         @click="removeFoodEntry(entry.id)"
                                     >
-                                        <Trash2 class="size-4" />
+                                        <Trash2 class="size-4"/>
                                         Remove
                                     </Button>
                                 </div>
@@ -1329,7 +1326,7 @@ watch(
                                         class="inline-flex items-center gap-2 text-destructive"
                                         @click="removeBurnEntry(burn.id)"
                                     >
-                                        <Trash2 class="size-4" />
+                                        <Trash2 class="size-4"/>
                                         Remove
                                     </Button>
                                 </div>
