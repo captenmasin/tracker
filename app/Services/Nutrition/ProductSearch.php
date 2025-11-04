@@ -40,6 +40,8 @@ class ProductSearch extends BarcodeLookup
             return [];
         }
 
+        dd($query, $response->json());
+
         $products = Arr::get($response->json(), 'products');
 
         if (! is_array($products)) {
