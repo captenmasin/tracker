@@ -168,6 +168,7 @@ const props = defineProps<Props>();
 const summary = computed(() => props.summary);
 const foods = computed(() => props.foods);
 const status = computed(() => props.status ?? null);
+type WeeklyDay = Summary['weekly']['days'][number];
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -213,14 +214,16 @@ const burnForm = useForm({
     description: '',
 });
 
+const macroKeys: MacroKey[] = ['protein', 'carb', 'fat'];
+
+const macroLabel = (key: MacroKey): string => (key === 'carb' ? 'Carbs' : key.charAt(0).toUpperCase() + key.slice(1));
+
 const macroList = computed(() =>
-    (Object.entries(summary.value.macros) as Array<[MacroKey, MacroProgress]>).map(
-        ([key, progress]) => ({
-            key,
-            label: key === 'carb' ? 'Carbs' : key.charAt(0).toUpperCase() + key.slice(1),
-            progress,
-        }),
-    ),
+    macroKeys.map((key) => ({
+        key,
+        label: macroLabel(key),
+        progress: summary.value.macros[key],
+    })),
 );
 
 const macroStyles: Record<MacroKey, { accent: string; chip: string }> = {
@@ -241,6 +244,74 @@ const macroStyles: Record<MacroKey, { accent: string; chip: string }> = {
 const macroAccentClass = (key: MacroKey): string => macroStyles[key].accent;
 
 const macroChipClass = (key: MacroKey): string => macroStyles[key].chip;
+
+const macroCaloriesPerGram: Record<MacroKey, number> = {
+    protein: 4,
+    carb: 4,
+    fat: 9,
+};
+
+const percentageFormatter = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 1,
+    minimumFractionDigits: 0,
+});
+
+const macroGoalPercentages = computed(() => {
+    if (!summary.value.macro_goal) {
+        return null;
+    }
+
+    return {
+        protein: summary.value.macro_goal.protein_percentage,
+        carb: summary.value.macro_goal.carb_percentage,
+        fat: summary.value.macro_goal.fat_percentage,
+    };
+});
+
+const macroGoalPercentage = (key: MacroKey): number | null =>
+    macroGoalPercentages.value ? macroGoalPercentages.value[key] : null;
+
+const calculateMacroPercentage = (calories: number, grams: number, key: MacroKey): number | null => {
+    if (calories <= 0) {
+        return null;
+    }
+
+    const macroCalories = grams * macroCaloriesPerGram[key];
+    const percentage = (macroCalories / calories) * 100;
+
+    if (!Number.isFinite(percentage)) {
+        return null;
+    }
+
+    return Number.parseFloat(percentage.toFixed(1));
+};
+
+const weeklyMacroTotals = computed(() => {
+    const weeklyCalories = summary.value.weekly.totals.calories;
+
+    return macroKeys.map((key) => {
+        const total = summary.value.weekly.totals[key];
+
+        return {
+            key,
+            label: macroLabel(key),
+            total,
+            actualPercent: calculateMacroPercentage(weeklyCalories, total, key),
+            goalPercent: macroGoalPercentage(key),
+        };
+    });
+});
+
+const dailyMacroPercentage = (day: WeeklyDay, key: MacroKey): number | null =>
+    calculateMacroPercentage(day.calories, day.macros[key], key);
+
+const formatPercentage = (value: number | null): string => {
+    if (value === null) {
+        return '--';
+    }
+
+    return `${percentageFormatter.format(value)}%`;
+};
 
 const selectedFood = computed(() => {
     const id = Number(libraryForm.food_id);
@@ -1680,6 +1751,31 @@ watch(
                             </div>
                         </div>
 
+                        <div class="space-y-2 text-sm">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Macro totals</p>
+                            <div class="space-y-2">
+                                <div
+                                    v-for="macro in weeklyMacroTotals"
+                                    :key="macro.key"
+                                    class="flex items-center justify-between rounded-md border border-border/70 bg-muted/10 px-3 py-2"
+                                >
+                                    <div class="space-y-1">
+                                        <p class="font-medium text-foreground">{{ macro.label }}</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ formatPercentage(macro.actualPercent) }}
+                                            of calories
+                                            <template v-if="macro.goalPercent !== null">
+                                                · goal {{ formatPercentage(macro.goalPercent) }}
+                                            </template>
+                                        </p>
+                                    </div>
+                                    <span class="text-foreground font-semibold">
+                                        {{ gramsFormatter.format(macro.total) }} g
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="space-y-3">
                             <div
                                 v-for="day in summary.weekly.days"
@@ -1702,6 +1798,31 @@ watch(
                                             class="h-1 rounded-full bg-primary"
                                             :style="{ width: `${Math.min(100, Math.abs(day.net) / 30)}%` }"
                                         />
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2 pt-2">
+                                    <div
+                                        v-for="macroKey in macroKeys"
+                                        :key="`${day.date}-${macroKey}`"
+                                        :class="[
+                                            'inline-flex min-w-[140px] items-center justify-between gap-3 rounded-full border px-3 py-2 text-xs',
+                                            macroChipClass(macroKey),
+                                        ]"
+                                    >
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-semibold leading-none">
+                                                {{ macroLabel(macroKey) }}
+                                            </span>
+                                            <span class="text-[11px] font-medium text-muted-foreground">
+                                                {{ formatPercentage(dailyMacroPercentage(day, macroKey)) }}
+                                                <template v-if="macroGoalPercentage(macroKey) !== null">
+                                                    · goal {{ formatPercentage(macroGoalPercentage(macroKey)) }}
+                                                </template>
+                                            </span>
+                                        </div>
+                                        <span class="text-sm font-semibold">
+                                            {{ gramsFormatter.format(day.macros[macroKey]) }}g
+                                        </span>
                                     </div>
                                 </div>
                             </div>

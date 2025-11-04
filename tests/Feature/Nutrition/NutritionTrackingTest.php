@@ -245,6 +245,20 @@ test('dashboard summary includes macros, burns, and remaining goals', function (
             && count($entries) === 2)
         ->where('summary.entries.burns.0.calories', 180)
         ->where('summary.weekly.totals.net', 540)
+        ->where('summary.weekly.totals.protein', 58)
+        ->where('summary.weekly.totals.carb', 55)
+        ->where('summary.weekly.totals.fat', 17)
+        ->where('summary.weekly.days', function ($days) use ($date) {
+            $day = collect($days)->firstWhere('date', $date->toDateString());
+
+            if ($day === null) {
+                return false;
+            }
+
+            return abs($day['macros']['protein'] - 58) < 0.01
+                && abs($day['macros']['carb'] - 55) < 0.01
+                && abs($day['macros']['fat'] - 17) < 0.01;
+        })
         ->where('summary.macros.carb.consumed', 55)
         ->where('summary.macros.fat.consumed', 17));
 });
