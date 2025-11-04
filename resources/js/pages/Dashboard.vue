@@ -226,24 +226,29 @@ const macroList = computed(() =>
     })),
 );
 
-const macroStyles: Record<MacroKey, { accent: string; chip: string }> = {
+const macroStyles: Record<MacroKey, { accent: string; chip: string; bar: string }> = {
     protein: {
         accent: 'text-emerald-500',
         chip: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600',
+        bar: 'bg-emerald-500/80',
     },
     carb: {
         accent: 'text-sky-500',
         chip: 'border-sky-500/40 bg-sky-500/10 text-sky-600',
+        bar: 'bg-sky-500/80',
     },
     fat: {
         accent: 'text-amber-500',
         chip: 'border-amber-500/40 bg-amber-500/10 text-amber-600',
+        bar: 'bg-amber-500/80',
     },
 };
 
 const macroAccentClass = (key: MacroKey): string => macroStyles[key].accent;
 
 const macroChipClass = (key: MacroKey): string => macroStyles[key].chip;
+
+const macroBarClass = (key: MacroKey): string => macroStyles[key].bar;
 
 const macroCaloriesPerGram: Record<MacroKey, number> = {
     protein: 4,
@@ -312,6 +317,21 @@ const formatPercentage = (value: number | null): string => {
 
     return `${percentageFormatter.format(value)}%`;
 };
+
+const dailyMacroPercentages = computed(() => {
+    const calories = summary.value.calories.consumed;
+
+    return macroKeys.map((key) => {
+        const progress = summary.value.macros[key];
+
+        return {
+            key,
+            label: macroLabel(key),
+            actualPercent: calculateMacroPercentage(calories, progress.consumed, key),
+            goalPercent: macroGoalPercentage(key),
+        };
+    });
+});
 
 const selectedFood = computed(() => {
     const id = Number(libraryForm.food_id);
@@ -1232,6 +1252,39 @@ watch(
                                 >
                                     Includes {{ gramsFormatter.format(macro.progress.allowance) }}g burn allowance.
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 space-y-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Goal vs actual</p>
+                        <div
+                            v-for="macro in dailyMacroPercentages"
+                            :key="`daily-percent-${macro.key}`"
+                            class="space-y-2"
+                        >
+                            <div class="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                                <span>{{ macro.label }}</span>
+                                <span>
+                                    {{ formatPercentage(macro.actualPercent) }}
+                                    <template v-if="macro.goalPercent !== null">
+                                        / {{ formatPercentage(macro.goalPercent) }}
+                                    </template>
+                                </span>
+                            </div>
+                            <div class="relative h-2 overflow-hidden rounded-full bg-muted">
+                                <div
+                                    :class="['absolute inset-y-0 rounded-full', macroBarClass(macro.key)]"
+                                    :style="{
+                                        width: `${Math.min(100, Math.max(0, macro.actualPercent ?? 0))}%`,
+                                    }"
+                                />
+                                <div
+                                    v-if="macro.goalPercent !== null"
+                                    class="absolute inset-y-0 w-[2px] bg-foreground/60"
+                                    :style="{
+                                        left: `${Math.min(100, Math.max(0, macro.goalPercent))}%`,
+                                    }"
+                                />
                             </div>
                         </div>
                     </div>
