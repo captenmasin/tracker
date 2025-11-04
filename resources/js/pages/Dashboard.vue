@@ -11,14 +11,13 @@ import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import {Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger} from '@/components/ui/sheet';
+import {Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger} from '@/components/ui/sheet';
 import nutrition from '@/routes/nutrition';
 import {dashboard} from '@/routes';
 import {type BreadcrumbItem} from '@/types';
@@ -195,6 +194,25 @@ const macroList = computed(() =>
     ),
 );
 
+const macroStyles: Record<MacroKey, { accent: string; chip: string }> = {
+    protein: {
+        accent: 'text-emerald-500',
+        chip: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600',
+    },
+    carb: {
+        accent: 'text-sky-500',
+        chip: 'border-sky-500/40 bg-sky-500/10 text-sky-600',
+    },
+    fat: {
+        accent: 'text-amber-500',
+        chip: 'border-amber-500/40 bg-amber-500/10 text-amber-600',
+    },
+};
+
+const macroAccentClass = (key: MacroKey): string => macroStyles[key].accent;
+
+const macroChipClass = (key: MacroKey): string => macroStyles[key].chip;
+
 const selectedFood = computed(() => {
     const id = Number(libraryForm.food_id);
 
@@ -237,10 +255,6 @@ const gramsFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
 });
 
-const percentageFormatter = new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 1,
-});
-
 const amountFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
 });
@@ -248,12 +262,12 @@ const amountFormatter = new Intl.NumberFormat(undefined, {
 const macroCircleRadius = 42;
 const macroCircleCircumference = 2 * Math.PI * macroCircleRadius;
 
-interface MacroCircleStyle {
+interface CircleStyle {
     strokeDasharray: string;
     strokeDashoffset: number;
 }
 
-const macroCircleStyle = (percentage: number | null): MacroCircleStyle => {
+const macroCircleStyle = (percentage: number | null): CircleStyle => {
     const circumference = macroCircleCircumference;
 
     if (percentage === null) {
@@ -271,6 +285,107 @@ const macroCircleStyle = (percentage: number | null): MacroCircleStyle => {
         strokeDashoffset: offset,
     };
 };
+
+const summaryCircleRadius = 48;
+const summaryCircleCircumference = 2 * Math.PI * summaryCircleRadius;
+
+const summaryCircleStyle = (percentage: number | null): CircleStyle => {
+    const circumference = summaryCircleCircumference;
+
+    if (percentage === null) {
+        return {
+            strokeDasharray: `${circumference} ${circumference}`,
+            strokeDashoffset: circumference,
+        };
+    }
+
+    const clamped = Math.min(Math.max(percentage, 0), 100);
+    const offset = circumference - (clamped / 100) * circumference;
+
+    return {
+        strokeDasharray: `${circumference} ${circumference}`,
+        strokeDashoffset: offset,
+    };
+};
+
+const calorieGoal = computed(() => {
+    if (summary.value.calories.goal !== null) {
+        return summary.value.calories.goal;
+    }
+
+    return summary.value.macro_goal?.daily_calorie_goal ?? null;
+});
+
+const summaryProgressPercentage = computed(() => {
+    const goal = calorieGoal.value;
+
+    if (!goal || goal <= 0) {
+        return null;
+    }
+
+    const net = summary.value.calories.net;
+    const clampedNet = Math.max(net, 0);
+
+    return Math.min((clampedNet / goal) * 100, 100);
+});
+
+const summaryRemainingLabel = computed(() => {
+    const goal = calorieGoal.value;
+
+    if (!goal || goal <= 0) {
+        return 'Set a calorie goal to track daily progress.';
+    }
+
+    const remaining = summary.value.calories.remaining;
+
+    if (remaining === null) {
+        return 'Goal data unavailable.';
+    }
+
+    if (remaining > 0) {
+        return `${caloriesFormatter.format(remaining)} kcal remaining`;
+    }
+
+    if (remaining < 0) {
+        return `${caloriesFormatter.format(Math.abs(remaining))} kcal over goal`;
+    }
+
+    return 'Goal met for today';
+});
+
+const summaryRemainingClass = computed(() => {
+    const goal = calorieGoal.value;
+
+    if (!goal || goal <= 0) {
+        return 'text-muted-foreground';
+    }
+
+    const remaining = summary.value.calories.remaining;
+
+    if (remaining === null) {
+        return 'text-muted-foreground';
+    }
+
+    if (remaining < 0) {
+        return 'text-destructive';
+    }
+
+    if (remaining === 0) {
+        return 'text-emerald-600';
+    }
+
+    return 'text-muted-foreground';
+});
+
+const summaryGoalLabel = computed(() => {
+    const goal = calorieGoal.value;
+
+    if (!goal || goal <= 0) {
+        return 'Not set';
+    }
+
+    return `${caloriesFormatter.format(goal)} kcal`;
+});
 
 const servingUnitOptions = [
     {label: 'grams (g)', value: 'g'},
@@ -649,168 +764,208 @@ watch(
                 </div>
             </div>
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Card>
-                    <CardHeader class="space-y-1">
-                        <CardTitle class="text-sm font-medium text-muted-foreground">
-                            Calories consumed
-                        </CardTitle>
-                        <div class="text-3xl font-semibold">
-                            {{ caloriesFormatter.format(summary.calories.consumed) }} kcal
+            <Card>
+                <CardHeader class="space-y-2">
+                    <CardTitle class="text-lg font-semibold">Daily summary</CardTitle>
+                    <CardDescription>
+                        How today’s intake stacks up for {{ summary.date.display }}.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
+                        <div class="flex flex-col items-center gap-4 text-center">
+                            <div class="relative h-40 w-40 p-2">
+                                <svg class="h-full w-full" viewBox="0 0 100 100">
+                                    <circle
+                                        class="stroke-slate-300 text-slate-300"
+                                        stroke-width="5"
+                                        stroke="currentColor"
+                                        fill="transparent"
+                                        :r="summaryCircleRadius"
+                                        cx="50"
+                                        cy="50"
+                                    />
+                                    <circle
+                                        v-if="summaryProgressPercentage !== null"
+                                        class="stroke-current text-primary transition-all"
+                                        stroke-width="5"
+                                        stroke-linecap="round"
+                                        stroke="currentColor"
+                                        fill="transparent"
+                                        :r="summaryCircleRadius"
+                                        cx="50"
+                                        cy="50"
+                                        :style="summaryCircleStyle(summaryProgressPercentage)"
+                                        transform="rotate(-90 50 50)"
+                                    />
+                                    <text
+                                        x="50"
+                                        y="50"
+                                        text-anchor="middle"
+                                        class="text-xl font-semibold text-foreground"
+                                    >
+                                        {{ caloriesFormatter.format(summary.calories.net) }}
+                                    </text>
+                                    <text
+                                        x="50"
+                                        y="66"
+                                        text-anchor="middle"
+                                        class="text-xs font-medium text-muted-foreground"
+                                    >
+                                        kcal
+                                    </text>
+                                </svg>
+                            </div>
+                            <p :class="['text-sm font-medium', summaryRemainingClass]">
+                                {{ summaryRemainingLabel }}
+                            </p>
                         </div>
-                    </CardHeader>
-                    <CardContent class="text-sm text-muted-foreground">
-                        Includes every logged food entry for {{ summary.date.display }}.
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader class="space-y-1">
-                        <CardTitle class="text-sm font-medium text-muted-foreground">
-                            Calories burned
-                        </CardTitle>
-                        <div class="text-3xl font-semibold">
-                            {{ caloriesFormatter.format(summary.calories.burned) }} kcal
-                        </div>
-                    </CardHeader>
-                    <CardContent class="text-sm text-muted-foreground">
-                        Logged activities reduce your daily net calories.
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader class="space-y-1">
-                        <CardTitle class="text-sm font-medium text-muted-foreground">
-                            Net calories
-                        </CardTitle>
-                        <div class="text-3xl font-semibold">
-                            {{ caloriesFormatter.format(summary.calories.net) }} kcal
-                        </div>
-                    </CardHeader>
-                    <CardContent class="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>Goal</span>
-                        <span v-if="summary.calories.goal !== null">
-                            {{ caloriesFormatter.format(summary.calories.goal) }} kcal
-                        </span>
-                        <span v-else>—</span>
-                    </CardContent>
-                    <CardFooter v-if="summary.calories.goal !== null" class="text-sm text-muted-foreground">
-                        {{ caloriesFormatter.format(summary.calories.remaining ?? 0) }} kcal remaining
-                    </CardFooter>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle class="text-sm font-medium text-muted-foreground">
-                            Macro targets
-                        </CardTitle>
-                        <CardDescription v-if="summary.macro_goal">
-                            {{ summary.macro_goal.protein_percentage }}% P ·
-                            {{ summary.macro_goal.carb_percentage }}% C ·
-                            {{ summary.macro_goal.fat_percentage }}% F
-                        </CardDescription>
-                        <CardDescription v-else>
-                            Set macro goals to unlock per-macro guidance.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent v-if="summary.macro_goal" class="space-y-1 text-sm text-muted-foreground">
-                        <p>
-                            Protein:
-                            {{ gramsFormatter.format(summary.macro_goal.targets.protein) }}g ·
-                            Carbs:
-                            {{ gramsFormatter.format(summary.macro_goal.targets.carb) }}g ·
-                            Fat:
-                            {{ gramsFormatter.format(summary.macro_goal.targets.fat) }}g
-                        </p>
-                        <p>
-                            Total daily goal:
-                            {{ caloriesFormatter.format(summary.macro_goal.daily_calorie_goal) }} kcal
-                        </p>
-                    </CardContent>
-                    <CardFooter class="text-sm">
-                        <Link
-                            :href="nutritionSettingsRoute.url"
-                            class="inline-flex items-center gap-2 text-primary"
-                        >
-                            Update macros
-                            <ArrowRight class="size-4"/>
-                        </Link>
-                    </CardFooter>
-                </Card>
-            </div>
-
-            <div class="grid gap-4 md:grid-cols-3">
-                <Card v-for="macro in macroList" :key="macro.key">
-                    <CardHeader>
-                        <CardTitle class="flex items-center justify-between text-sm font-medium text-muted-foreground">
-                            {{ macro.label }}
-                            <span v-if="macro.progress.goal" class="text-xs text-muted-foreground">
-                                Goal: {{ gramsFormatter.format(macro.progress.goal) }}g
-                            </span>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent class="flex items-center gap-4">
-                        <div class="relative h-24 w-24">
-                            <svg class="h-full w-full" viewBox="0 0 100 100">
-                                <circle
-                                    class="text-muted stroke-current opacity-20"
-                                    stroke-width="10"
-                                    stroke="currentColor"
-                                    fill="transparent"
-                                    :r="macroCircleRadius"
-                                    cx="50"
-                                    cy="50"
-                                />
-                                <circle
-                                    class="text-primary stroke-current"
-                                    stroke-width="10"
-                                    stroke-linecap="round"
-                                    stroke="currentColor"
-                                    fill="transparent"
-                                    :r="macroCircleRadius"
-                                    cx="50"
-                                    cy="50"
-                                    :style="macroCircleStyle(macro.progress.percentage)"
-                                    transform="rotate(-90 50 50)"
-                                />
-                                <text
-                                    x="50"
-                                    y="54"
-                                    text-anchor="middle"
-                                    class="fill-foreground text-lg font-semibold"
+                        <div class="flex-1 space-y-4">
+                            <div class="grid gap-3 text-sm">
+                                <div
+                                    class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
                                 >
-                                    {{
-                                        macro.progress.percentage !== null
-                                            ? percentageFormatter.format(Math.min(macro.progress.percentage, 999.9))
-                                            : '—'
-                                    }}%
-                                </text>
-                            </svg>
-                        </div>
-                        <div class="space-y-2 text-sm">
-                            <p class="text-foreground font-semibold">
-                                {{ gramsFormatter.format(macro.progress.consumed) }}g consumed
-                            </p>
-                            <p v-if="macro.progress.remaining !== null" class="text-muted-foreground">
-                                {{ gramsFormatter.format(macro.progress.remaining) }}g remaining
-                            </p>
-                            <p v-else class="text-muted-foreground">Set a goal to track remaining grams.</p>
-                            <p
-                                v-if="macro.progress.allowance > 0"
-                                class="text-xs text-muted-foreground"
+                                    <span class="flex items-center gap-2 text-muted-foreground">
+                                        <UtensilsCrossed class="size-4"/>
+                                        Calories consumed
+                                    </span>
+                                    <span class="font-semibold text-foreground">
+                                        {{ caloriesFormatter.format(summary.calories.consumed) }} kcal
+                                    </span>
+                                </div>
+                                <div
+                                    class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                >
+                                    <span class="flex items-center gap-2 text-muted-foreground">
+                                        <Flame class="size-4"/>
+                                        Calories burned
+                                    </span>
+                                    <span class="font-semibold text-foreground">
+                                        {{ caloriesFormatter.format(summary.calories.burned) }} kcal
+                                    </span>
+                                </div>
+                                <div
+                                    class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                >
+                                    <span class="text-muted-foreground">Goal</span>
+                                    <span class="font-semibold text-foreground">
+                                        {{ summaryGoalLabel }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                <span class="rounded-full border border-border/60 bg-background/80 px-3 py-1">
+                                    Burned workouts lower net calories.
+                                </span>
+                                <span v-if="summaryProgressPercentage === null" class="rounded-full border border-border/60 bg-background/80 px-3 py-1">
+                                    Set a goal to unlock progress tracking.
+                                </span>
+                            </div>
+                            <Link
+                                :href="nutritionSettingsRoute.url"
+                                class="inline-flex items-center gap-2 text-sm text-primary"
                             >
-                                Includes
-                                {{ gramsFormatter.format(macro.progress.allowance) }}g burn allowance
-                            </p>
+                                Adjust goals
+                                <ArrowRight class="size-4"/>
+                            </Link>
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader class="space-y-2">
+                    <CardTitle class="text-lg font-semibold">Macronutrients</CardTitle>
+                    <CardDescription>
+                        Protein, carb, and fat progress for {{ summary.date.display }}.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div class="grid gap-6 lg:grid-cols-3 lg:gap-8">
+                        <div
+                            v-for="macro in macroList"
+                            :key="macro.key"
+                            class="space-y-0"
+                        >
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-sm w-full text-center font-medium text-muted-foreground">
+                                    {{ macro.label }}
+                                </p>
+                            </div>
+                            <div class="flex flex-col items-center gap-0 text-center">
+                                <div class="relative h-32 w-32">
+                                    <svg class="h-full w-full" viewBox="0 0 100 100">
+                                        <circle
+                                            class="stroke-slate-200 text-slate-200"
+                                            stroke-width="5"
+                                            stroke="currentColor"
+                                            fill="transparent"
+                                            :r="macroCircleRadius"
+                                            cx="50"
+                                            cy="50"
+                                        />
+                                        <circle
+                                            :class="['stroke-current', macroAccentClass(macro.key)]"
+                                            stroke-width="5"
+                                            stroke-linecap="round"
+                                            stroke="currentColor"
+                                            fill="transparent"
+                                            :r="macroCircleRadius"
+                                            cx="50"
+                                            cy="50"
+                                            :style="macroCircleStyle(macro.progress.percentage)"
+                                            transform="rotate(-90 50 50)"
+                                        />
+                                        <text
+                                            x="50"
+                                            y="50"
+                                            text-anchor="middle"
+                                            :class="['text-xl font-semibold fill-current text-slate-600']"
+                                        >
+                                            {{ gramsFormatter.format(macro.progress.consumed) }}g
+                                        </text>
+                                        <text
+                                            v-if="macro.progress.goal !== null"
+                                            x="50"
+                                            y="68"
+                                            text-anchor="middle"
+                                            class="text-xs font-medium text-slate-600 opacity-50"
+                                        >
+                                            / {{ gramsFormatter.format(macro.progress.goal) }}g
+                                        </text>
+                                        <text
+                                            v-else
+                                            x="50"
+                                            y="66"
+                                            text-anchor="middle"
+                                            class="text-xs font-medium text-muted-foreground"
+                                        >
+                                            Goal not set
+                                        </text>
+                                    </svg>
+                                </div>
+                                <p v-if="macro.progress.remaining !== null" class="text-sm text-muted-foreground">
+                                    {{ gramsFormatter.format(macro.progress.remaining) }}g left
+                                </p>
+                                <p v-else class="text-sm text-muted-foreground">
+                                    Set a goal to track remaining grams.
+                                </p>
+                                <p
+                                    v-if="macro.progress.allowance > 0"
+                                    :class="['text-xs mt-1', macroAccentClass(macro.key)]"
+                                >
+                                    Includes {{ gramsFormatter.format(macro.progress.allowance) }}g burn allowance.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <Sheet>
                 <SheetTrigger as-child>
                     <Button>
-                    Log food
+                        Log food
                     </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom">
@@ -929,14 +1084,16 @@ watch(
                                 </div>
 
                                 <div class="flex flex-wrap items-center gap-3">
-                                    <Button
-                                        type="submit"
-                                        class="w-full"
-                                        :disabled="libraryForm.processing"
-                                    >
-                                        <PlusCircle class="size-4"/>
-                                        Log entry
-                                    </Button>
+                                    <SheetClose as-child>
+                                        <Button
+                                            type="submit"
+                                            class="w-full"
+                                            :disabled="libraryForm.processing"
+                                        >
+                                            <PlusCircle class="size-4"/>
+                                            Log entry
+                                        </Button>
+                                    </SheetClose>
                                     <InputError :message="libraryForm.errors.source"/>
                                 </div>
                             </form>
