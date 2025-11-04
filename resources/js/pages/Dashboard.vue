@@ -329,6 +329,26 @@ const summaryProgressPercentage = computed(() => {
     return Math.min((clampedNet / goal) * 100, 100);
 });
 
+const summaryCircleCalories = computed(() => {
+    const remaining = summary.value.calories.remaining;
+
+    if (remaining === null) {
+        return null;
+    }
+
+    return remaining;
+});
+
+const summaryCircleDisplay = computed(() => {
+    const calories = summaryCircleCalories.value;
+
+    if (calories === null) {
+        return '--';
+    }
+
+    return caloriesFormatter.format(calories);
+});
+
 const summaryRemainingLabel = computed(() => {
     const goal = calorieGoal.value;
 
@@ -773,7 +793,7 @@ watch(
                 </CardHeader>
                 <CardContent>
                     <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
-                        <div class="flex flex-col items-center gap-4 text-center">
+                        <div class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
                             <div class="relative h-40 w-40 p-2">
                                 <svg class="h-full w-full" viewBox="0 0 100 100">
                                     <circle
@@ -804,7 +824,7 @@ watch(
                                         text-anchor="middle"
                                         class="text-xl font-semibold text-foreground"
                                     >
-                                        {{ caloriesFormatter.format(summary.calories.net) }}
+                                        {{ summaryCircleDisplay }}
                                     </text>
                                     <text
                                         x="50"
@@ -816,18 +836,13 @@ watch(
                                     </text>
                                 </svg>
                             </div>
-                            <p :class="['text-sm font-medium', summaryRemainingClass]">
-                                {{ summaryRemainingLabel }}
-                            </p>
-                        </div>
-                        <div class="flex-1 space-y-4">
-                            <div class="grid gap-3 text-sm">
+                            <div class="grid w-full max-w-sm gap-3 text-sm">
                                 <div
                                     class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
                                 >
                                     <span class="flex items-center gap-2 text-muted-foreground">
                                         <UtensilsCrossed class="size-4"/>
-                                        Calories consumed
+                                        Consumed
                                     </span>
                                     <span class="font-semibold text-foreground">
                                         {{ caloriesFormatter.format(summary.calories.consumed) }} kcal
@@ -838,7 +853,7 @@ watch(
                                 >
                                     <span class="flex items-center gap-2 text-muted-foreground">
                                         <Flame class="size-4"/>
-                                        Calories burned
+                                        Burned
                                     </span>
                                     <span class="font-semibold text-foreground">
                                         {{ caloriesFormatter.format(summary.calories.burned) }} kcal
@@ -853,21 +868,6 @@ watch(
                                     </span>
                                 </div>
                             </div>
-                            <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                <span class="rounded-full border border-border/60 bg-background/80 px-3 py-1">
-                                    Burned workouts lower net calories.
-                                </span>
-                                <span v-if="summaryProgressPercentage === null" class="rounded-full border border-border/60 bg-background/80 px-3 py-1">
-                                    Set a goal to unlock progress tracking.
-                                </span>
-                            </div>
-                            <Link
-                                :href="nutritionSettingsRoute.url"
-                                class="inline-flex items-center gap-2 text-sm text-primary"
-                            >
-                                Adjust goals
-                                <ArrowRight class="size-4"/>
-                            </Link>
                         </div>
                     </div>
                 </CardContent>
