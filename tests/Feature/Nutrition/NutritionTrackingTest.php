@@ -132,6 +132,8 @@ test('calorie burns are tracked per day', function () {
 test('barcode lookup falls back to an external nutrition service when needed', function () {
     config()->set('services.nutrition.endpoint', 'https://nutrition.test/lookup');
     config()->set('services.nutrition.key', 'test-key');
+    config()->set('services.nutrition.language', 'en');
+    config()->set('services.nutrition.country', 'us');
 
     Http::fake([
         'https://nutrition.test/lookup/*' => Http::response([
@@ -176,7 +178,9 @@ test('barcode lookup falls back to an external nutrition service when needed', f
 
         return str_starts_with($url, 'https://nutrition.test/lookup/0099887766554.json')
             && $request->method() === 'GET'
-            && ($params['fields'] ?? null) === 'product_name,serving_size,serving_quantity,product_quantity,product_quantity_unit,nutriments'
+            && ($params['fields'] ?? null) === 'product_name,product_name_en,serving_size,serving_quantity,product_quantity,product_quantity_unit,nutriments'
+            && ($params['lc'] ?? null) === 'en'
+            && ($params['cc'] ?? null) === 'us'
             && $request->hasHeader('Authorization', 'Bearer test-key');
     });
 });

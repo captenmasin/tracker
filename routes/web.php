@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FoodBarcodeController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\FoodEntryController;
+use App\Http\Controllers\FoodSearchController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -26,6 +27,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('calorie-burn-entries', CalorieBurnEntryController::class)
         ->only(['store', 'destroy']);
+
+    Route::get('foods/search', FoodSearchController::class)->name('foods.search');
 
     Route::get('foods/barcode/{barcode}', FoodBarcodeController::class)
         ->where('barcode', '[A-Za-z0-9\\-]+')

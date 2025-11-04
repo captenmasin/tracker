@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FoodBarcodeController from '@/actions/App/Http/Controllers/FoodBarcodeController';
+import FoodSearchController from '@/actions/App/Http/Controllers/FoodSearchController';
 import CalorieBurnEntryController from '@/actions/App/Http/Controllers/CalorieBurnEntryController';
 import FoodEntryController from '@/actions/App/Http/Controllers/FoodEntryController';
 import BarcodeScanner from '@/Pages/Dashboard/components/BarcodeScanner.vue';
@@ -30,10 +31,11 @@ import {
     Flame,
     PlusCircle,
     Scan,
+    Search,
     Trash2,
     UtensilsCrossed,
 } from 'lucide-vue-next';
-import {computed, ref, watch} from 'vue';
+import {computed, nextTick, ref, watch} from 'vue';
 import {toast} from 'vue-sonner';
 
 type MacroKey = 'protein' | 'carb' | 'fat';
@@ -126,6 +128,33 @@ interface FoodOption {
     protein_grams: number;
     carb_grams: number;
     fat_grams: number;
+}
+
+type NumericLike = number | string | null;
+
+interface ExternalNutritionPayload {
+    name?: string | null;
+    barcode?: string | null;
+    serving_size?: NumericLike;
+    serving_unit?: string | null;
+    servings?: NumericLike;
+    calories?: NumericLike;
+    calories_total?: NumericLike;
+    protein?: NumericLike;
+    protein_total?: NumericLike;
+    carb?: NumericLike;
+    carb_total?: NumericLike;
+    fat?: NumericLike;
+    fat_total?: NumericLike;
+    default_quantity?: NumericLike;
+    reference_quantity?: NumericLike;
+    serving_quantity?: NumericLike;
+    total_quantity?: NumericLike;
+}
+
+interface FoodSearchResult extends ExternalNutritionPayload {
+    name: string;
+    source?: string | null;
 }
 
 interface Props {
@@ -258,6 +287,226 @@ const gramsFormatter = new Intl.NumberFormat(undefined, {
 const amountFormatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
 });
+
+const parseNumericValue = (value: unknown): number | null => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+
+    if (typeof value === 'string' && value.trim() !== '') {
+        const numeric = Number(value);
+
+        if (!Number.isNaN(numeric)) {
+            return numeric;
+        }
+    }
+
+    return null;
+};
+
+const formatNumericInput = (value: unknown): string => {
+    const numeric = parseNumericValue(value);
+
+    if (numeric === null) {
+        return '';
+    }
+
+    return amountFormatter.format(numeric);
+};
+
+const SEARCH_LIMIT = 8;
+
+const searchQuery = ref('');
+const searchLoading = ref(false);
+const searchResults = ref<FoodSearchResult[]>([]);
+const searchError = ref<string | null>(null);
+const searchPerformed = ref(false);
+const searchAbortController = ref<AbortController | null>(null);
+const manualSearchInput = ref<HTMLInputElement | null>(null);
+
+const loadExternalNutrition = (
+    food: ExternalNutritionPayload,
+    options?: { barcode?: string | null },
+): { referenceQuantity: number | null; servingUnit: string } => {
+    activeIntakeTab.value = 'manual';
+
+    manualForm.name = typeof food.name === 'string' ? food.name : '';
+
+    const resolvedBarcode = options?.barcode ?? food.barcode;
+    manualForm.barcode = typeof resolvedBarcode === 'string' ? resolvedBarcode : '';
+    manualForm.quantity = '1';
+
+    manualForm.serving_size_value = formatNumericInput(
+        food.reference_quantity ?? food.serving_size ?? food.serving_quantity,
+    );
+
+    const unit = typeof food.serving_unit === 'string' && food.serving_unit.trim() !== ''
+        ? food.serving_unit
+        : 'g';
+
+    manualForm.serving_unit = unit;
+    manualForm.serving_unit_raw = unit;
+
+    manualForm.calories = formatNumericInput(food.calories_total ?? food.calories);
+    manualForm.protein_grams = formatNumericInput(food.protein_total ?? food.protein);
+    manualForm.carb_grams = formatNumericInput(food.carb_total ?? food.carb);
+    manualForm.fat_grams = formatNumericInput(food.fat_total ?? food.fat);
+
+    const referenceQuantityNumeric = parseNumericValue(
+        food.reference_quantity ?? food.serving_size ?? food.serving_quantity,
+    );
+
+    if (referenceQuantityNumeric !== null && referenceQuantityNumeric > 0) {
+        referenceAmountLabel.value = amountFormatter.format(referenceQuantityNumeric);
+    } else {
+        referenceAmountLabel.value = null;
+    }
+
+    referenceUnitLabel.value = unit;
+
+    return {
+        referenceQuantity: referenceQuantityNumeric !== null && referenceQuantityNumeric > 0
+            ? referenceQuantityNumeric
+            : null,
+        servingUnit: unit,
+    };
+};
+
+const clearExternalSearch = () => {
+    if (searchAbortController.value) {
+        searchAbortController.value.abort();
+        searchAbortController.value = null;
+    }
+
+    searchResults.value = [];
+    searchError.value = null;
+    searchPerformed.value = false;
+};
+
+const performExternalSearch = async () => {
+    const query = searchQuery.value.trim();
+
+    searchError.value = null;
+
+    if (query.length < 2) {
+        searchResults.value = [];
+        searchPerformed.value = false;
+        searchError.value = 'Enter at least 2 characters.';
+        return;
+    }
+
+    if (searchAbortController.value) {
+        searchAbortController.value.abort();
+    }
+
+    const controller = new AbortController();
+    searchAbortController.value = controller;
+    searchLoading.value = true;
+    searchPerformed.value = true;
+
+    try {
+        const response = await fetch(
+            FoodSearchController({
+                query: {
+                    query,
+                    limit: SEARCH_LIMIT,
+                },
+            }).url,
+            {
+                headers: {
+                    Accept: 'application/json',
+                },
+                signal: controller.signal,
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error('Search failed');
+        }
+
+        const data = await response.json();
+        const products: FoodSearchResult[] = Array.isArray(data.results)
+            ? data.results.filter(
+                (item: unknown): item is FoodSearchResult =>
+                    typeof item === 'object' &&
+                    item !== null &&
+                    'name' in item &&
+                    typeof (item as { name: unknown }).name === 'string',
+            )
+            : [];
+
+        searchResults.value = products;
+    } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            return;
+        }
+
+        console.error(error);
+        searchError.value = 'Unable to search right now. Try again in a moment.';
+        searchResults.value = [];
+    } finally {
+        if (searchAbortController.value === controller) {
+            searchLoading.value = false;
+            searchAbortController.value = null;
+        }
+    }
+};
+
+const applySearchResult = (result: FoodSearchResult) => {
+    const { referenceQuantity, servingUnit } = loadExternalNutrition(result, {
+        barcode: typeof result.barcode === 'string' ? result.barcode : null,
+    });
+
+    const sizeLabel = referenceQuantity
+        ? ` (~${amountFormatter.format(referenceQuantity)}${servingUnit})`
+        : '';
+
+    barcodeNotice.value = {
+        variant: 'default',
+        message: `Loaded ${result.name} from Open Food Facts${sizeLabel}. Amount defaults to the whole item.`,
+    };
+};
+
+const resultMacroSummary = (result: FoodSearchResult): string => {
+    const protein = parseNumericValue(result.protein ?? result.protein_total);
+    const carbs = parseNumericValue(result.carb ?? result.carb_total);
+    const fat = parseNumericValue(result.fat ?? result.fat_total);
+
+    const parts: string[] = [];
+
+    if (protein !== null && protein > 0) {
+        parts.push(`${gramsFormatter.format(protein)}g protein`);
+    }
+
+    if (carbs !== null && carbs > 0) {
+        parts.push(`${gramsFormatter.format(carbs)}g carbs`);
+    }
+
+    if (fat !== null && fat > 0) {
+        parts.push(`${gramsFormatter.format(fat)}g fat`);
+    }
+
+    return parts.join(' · ');
+};
+
+const resultCalories = (result: FoodSearchResult): number | null => {
+    const calories = parseNumericValue(result.calories ?? result.calories_total);
+
+    if (calories !== null && calories > 0) {
+        return calories;
+    }
+
+    return null;
+};
+
+const openSearchPanel = () => {
+    scannerActive.value = false;
+    activeIntakeTab.value = 'manual';
+
+    nextTick(() => {
+        manualSearchInput.value?.focus();
+    });
+};
 
 const macroCircleRadius = 42;
 const macroCircleCircumference = 2 * Math.PI * macroCircleRadius;
@@ -534,6 +783,7 @@ const submitManual = () => {
                 manualForm.serving_unit_raw = 'g';
                 manualForm.consumed_on = summary.value.date.current;
                 manualForm.source = 'manual';
+                clearExternalSearch();
             },
         });
 };
@@ -618,62 +868,17 @@ const handleBarcodeDetected = async (value: string) => {
             }
 
             if (data.source === 'external' && data.food) {
-                activeIntakeTab.value = 'manual';
+                const { referenceQuantity, servingUnit } = loadExternalNutrition(data.food, {
+                    barcode: trimmed,
+                });
 
-                const formatNumber = (value: unknown): string => {
-                    if (typeof value === 'number') {
-                        return amountFormatter.format(value);
-                    }
-
-                    if (typeof value === 'string' && value !== '') {
-                        const numeric = Number(value);
-                        if (!Number.isNaN(numeric)) {
-                            return amountFormatter.format(numeric);
-                        }
-                    }
-
-                    return '';
-                };
-
-                manualForm.name = data.food.name ?? '';
-                manualForm.barcode = trimmed;
-                manualForm.quantity = '1';
-                manualForm.serving_size_value = formatNumber(
-                    data.food.reference_quantity ?? data.food.serving_size,
-                );
-                manualForm.serving_unit = data.food.serving_unit ?? 'g';
-                manualForm.serving_unit_raw = manualForm.serving_unit;
-                manualForm.calories = formatNumber(
-                    data.food.calories_total ?? data.food.calories_per_serving,
-                );
-                manualForm.protein_grams = formatNumber(
-                    data.food.protein_total ?? data.food.protein_grams,
-                );
-                manualForm.carb_grams = formatNumber(
-                    data.food.carb_total ?? data.food.carb_grams,
-                );
-                manualForm.fat_grams = formatNumber(
-                    data.food.fat_total ?? data.food.fat_grams,
-                );
-
-                const referenceQuantityNumeric = Number(
-                    formatNumber(data.food.reference_quantity ?? data.food.serving_size),
-                );
-
-                if (!Number.isNaN(referenceQuantityNumeric) && referenceQuantityNumeric > 0) {
-                    referenceAmountLabel.value = amountFormatter.format(referenceQuantityNumeric);
-                } else {
-                    referenceAmountLabel.value = null;
-                }
-
-                referenceUnitLabel.value = data.food.serving_unit ?? 'g';
+                const message = referenceQuantity
+                    ? `Loaded full product nutrition (~${amountFormatter.format(referenceQuantity)}${servingUnit}). Amount defaults to the whole item.`
+                    : 'Loaded nutrition details. Amount defaults to the whole item.';
 
                 barcodeNotice.value = {
                     variant: 'default',
-                    message:
-                        referenceAmountLabel.value
-                            ? `Loaded full product nutrition (~${referenceAmountLabel.value}${referenceUnitLabel.value}). Amount defaults to the whole item.`
-                            : 'Loaded nutrition details. Amount defaults to the whole item.',
+                    message,
                 };
                 return;
             }
@@ -1005,6 +1210,15 @@ watch(
                                     <Scan class="size-4"/>
                                     {{ scannerActive ? 'Stop scanning' : 'Scan barcode' }}
                                 </Button>
+                                <Button
+                                    class="w-full"
+                                    type="button"
+                                    variant="secondary"
+                                    @click="openSearchPanel"
+                                >
+                                    <Search class="size-4"/>
+                                    Search foods
+                                </Button>
                             </div>
 
                             <BarcodeScanner
@@ -1100,6 +1314,109 @@ watch(
                         </div>
 
                         <div v-else class="space-y-6">
+                            <div class="grid gap-3 rounded-lg border border-border/60 bg-muted/10 p-4">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                    <div class="flex-1 space-y-2">
+                                        <Label for="openfood_search">Search Open Food Facts</Label>
+                                        <Input
+                                            id="openfood_search"
+                                            ref="manualSearchInput"
+                                            v-model="searchQuery"
+                                            name="openfood_search"
+                                            type="search"
+                                            placeholder="e.g. Greek yogurt"
+                                            @keydown.enter.prevent="performExternalSearch"
+                                        />
+                                        <p class="text-xs text-muted-foreground">
+                                            Find nutrition details when you do not have a barcode. Powered by Open Food Facts.
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            class="sm:self-auto"
+                                            :disabled="searchLoading"
+                                            @click="performExternalSearch"
+                                        >
+                                            {{ searchLoading ? 'Searching…' : 'Search' }}
+                                        </Button>
+                                        <Button
+                                            v-if="searchResults.length || searchPerformed"
+                                            type="button"
+                                            variant="ghost"
+                                            class="text-xs"
+                                            :disabled="searchLoading"
+                                            @click="clearExternalSearch"
+                                        >
+                                            Clear
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <p v-if="searchError" class="text-sm text-destructive">
+                                    {{ searchError }}
+                                </p>
+                                <p v-else-if="searchLoading" class="text-sm text-muted-foreground">
+                                    Searching Open Food Facts…
+                                </p>
+                                <ul
+                                    v-else-if="searchResults.length"
+                                    class="grid max-h-60 gap-2 overflow-y-auto pr-1"
+                                >
+                                    <li
+                                        v-for="result in searchResults"
+                                        :key="result.barcode ?? result.name"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="w-full rounded-md border border-border/60 bg-background/80 px-3 py-2 text-left transition hover:border-primary/60 hover:bg-primary/5"
+                                            @click="applySearchResult(result)"
+                                        >
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="space-y-1">
+                                                    <p class="text-sm font-medium text-foreground">
+                                                        {{ result.name }}
+                                                    </p>
+                                                    <p class="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
+                                                        <span v-if="resultCalories(result) !== null">
+                                                            ≈ {{ caloriesFormatter.format(resultCalories(result) ?? 0) }} kcal
+                                                        </span>
+                                                        <span
+                                                            v-if="resultCalories(result) !== null && resultMacroSummary(result)"
+                                                            aria-hidden="true"
+                                                        >
+                                                            ·
+                                                        </span>
+                                                        <span v-if="resultMacroSummary(result)">
+                                                            {{ resultMacroSummary(result) }}
+                                                        </span>
+                                                    </p>
+                                                    <p class="text-xs text-muted-foreground">
+                                                        Serving:
+                                                        {{
+                                                            formatNumericInput(
+                                                                result.serving_size ??
+                                                                    result.reference_quantity ??
+                                                                    result.serving_quantity
+                                                            ) || 'n/a'
+                                                        }}
+                                                        {{ result.serving_unit ?? 'g' }}
+                                                        <span v-if="result.barcode" class="ml-2">
+                                                            • {{ result.barcode }}
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                                <span class="text-xs font-medium text-primary">Use</span>
+                                            </div>
+                                        </button>
+                                    </li>
+                                </ul>
+                                <p v-else-if="searchPerformed" class="text-sm text-muted-foreground">
+                                    No matches found. Try different keywords.
+                                </p>
+                            </div>
+
                             <form @submit.prevent="submitManual" class="grid gap-4">
                                 <div class="grid gap-2">
                                     <Label for="manual_name">Food name</Label>
@@ -1232,16 +1549,6 @@ watch(
                                             required
                                         />
                                         <InputError :message="manualForm.errors.consumed_on"/>
-                                    </div>
-                                    <div class="grid gap-2">
-                                        <Label for="manual_barcode">Barcode (optional)</Label>
-                                        <Input
-                                            id="manual_barcode"
-                                            v-model="manualForm.barcode"
-                                            name="barcode"
-                                            type="text"
-                                        />
-                                        <InputError :message="manualForm.errors.barcode"/>
                                     </div>
                                 </div>
 

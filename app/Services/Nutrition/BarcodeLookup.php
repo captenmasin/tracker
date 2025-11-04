@@ -22,9 +22,11 @@ class BarcodeLookup
 
         $response = Http::withHeaders($this->headers())
             ->acceptJson()
-            ->get($uri, [
-                'fields' => 'product_name,serving_size,serving_quantity,product_quantity,product_quantity_unit,nutriments',
-            ]);
+            ->get($uri, array_filter([
+                'fields' => 'product_name,product_name_en,serving_size,serving_quantity,product_quantity,product_quantity_unit,nutriments',
+                'lc' => $this->language(),
+                'cc' => $this->country(),
+            ], fn ($value) => $value !== null && $value !== ''));
 
         if ($response->failed()) {
             return null;
@@ -33,6 +35,21 @@ class BarcodeLookup
         $product = Arr::get($response->json(), 'product');
 
         if (! is_array($product)) {
+            return null;
+        }
+
+        return $this->transformProduct($product, $barcode);
+    }
+
+    /**
+     * @param  array<string, mixed>  $product
+     * @return array<string, mixed>|null
+     */
+    protected function transformProduct(array $product, ?string $barcode = null): ?array
+    {
+        $name = Arr::get($product, 'product_name_en') ?? Arr::get($product, 'product_name');
+
+        if (! is_string($name) || trim($name) === '') {
             return null;
         }
 
@@ -87,7 +104,8 @@ class BarcodeLookup
             : ($servingQuantity > 0 ? $servingQuantity : 1.0);
 
         return [
-            'name' => Arr::get($product, 'product_name'),
+            'name' => $name,
+            'barcode' => $barcode,
             'serving_size' => round($referenceQuantity, 2),
             'serving_unit' => $unit,
             'servings' => $servingCount !== null && $servingCount > 0
@@ -190,6 +208,24 @@ class BarcodeLookup
             'dl' => $quantity * 100,
             default => $quantity,
         };
+    }
+
+    protected function language(): string
+    {
+        return (string) config('services.nutrition.language', 'en');
+    }
+
+    protected function country(): ?string
+    {
+        $country = config('services.nutrition.country');
+
+        if ($country === null) {
+            return null;
+        }
+
+        $country = strtolower((string) $country);
+
+        return $country !== '' ? $country : null;
     }
 
     /**

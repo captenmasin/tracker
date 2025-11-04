@@ -37,8 +37,11 @@ return [
 
     'nutrition' => [
         'endpoint' => env('NUTRITION_API_URL', 'https://world.openfoodfacts.org/api/v2/product'),
+        'search_endpoint' => env('NUTRITION_SEARCH_API_URL', 'https://world.openfoodfacts.org/api/v2/search'),
         'key' => env('NUTRITION_API_KEY'),
         'key_header' => env('NUTRITION_API_KEY_HEADER', 'Authorization'),
+        'language' => env('NUTRITION_API_LANGUAGE', 'en'),
+        'country' => env('NUTRITION_API_COUNTRY', 'us'),
     ],
 
 ];
