@@ -3,38 +3,31 @@
 namespace App\Services\Nutrition;
 
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Http;
+use OpenFoodFacts\Laravel\OpenFoodFacts as OpenFoodFactsClient;
+use Throwable;
 
 class BarcodeLookup
 {
+    public function __construct(public OpenFoodFactsClient $client) {}
+
     /**
      * @return array<string, mixed>|null
      */
     public function lookup(string $barcode): ?array
     {
-        $endpoint = (string) config('services.nutrition.endpoint');
+        $barcode = trim($barcode);
 
-        if ($endpoint === '') {
+        if ($barcode === '') {
             return null;
         }
 
-        $uri = rtrim($endpoint, '/').'/'.urlencode($barcode).'.json';
-
-        $response = Http::withHeaders($this->headers())
-            ->acceptJson()
-            ->get($uri, array_filter([
-                'fields' => 'product_name,product_name_en,serving_size,serving_quantity,product_quantity,product_quantity_unit,nutriments',
-                'lc' => $this->language(),
-                'cc' => $this->country(),
-            ], fn ($value) => $value !== null && $value !== ''));
-
-        if ($response->failed()) {
+        try {
+            $product = $this->client->barcode($barcode);
+        } catch (Throwable) {
             return null;
         }
 
-        $product = Arr::get($response->json(), 'product');
-
-        if (! is_array($product)) {
+        if (! is_array($product) || $product === []) {
             return null;
         }
 
@@ -122,27 +115,6 @@ class BarcodeLookup
         ];
     }
 
-    /**
-     * @return array<string, string>
-     */
-    protected function headers(): array
-    {
-        $headers = [];
-
-        $token = (string) config('services.nutrition.key', '');
-        $headerName = (string) config('services.nutrition.key_header', 'Authorization');
-
-        if ($token !== '') {
-            $headers[$headerName] = $headerName === 'Authorization'
-                ? 'Bearer '.$token
-                : $token;
-        }
-
-        $headers['User-Agent'] = sprintf('%s (Laravel Calorie Tracker)', config('app.name', 'Calorie Tracker'));
-
-        return $headers;
-    }
-
     protected function parseNumeric(mixed $value): float
     {
         if (is_numeric($value)) {
@@ -208,24 +180,6 @@ class BarcodeLookup
             'dl' => $quantity * 100,
             default => $quantity,
         };
-    }
-
-    protected function language(): string
-    {
-        return (string) config('services.nutrition.language', 'en');
-    }
-
-    protected function country(): ?string
-    {
-        $country = config('services.nutrition.country');
-
-        if ($country === null) {
-            return null;
-        }
-
-        $country = strtolower((string) $country);
-
-        return $country !== '' ? $country : null;
     }
 
     /**

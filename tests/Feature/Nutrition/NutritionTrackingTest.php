@@ -6,8 +6,10 @@ use App\Models\FoodEntry;
 use App\Models\MacroGoal;
 use App\Models\User;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
+use OpenFoodFacts\Laravel\OpenFoodFacts as OpenFoodFactsClient;
+
+use function Pest\Laravel\mock;
 
 test('users can save foods to their library', function () {
     $user = User::factory()->create();
@@ -130,14 +132,11 @@ test('calorie burns are tracked per day', function () {
 });
 
 test('barcode lookup falls back to an external nutrition service when needed', function () {
-    config()->set('services.nutrition.endpoint', 'https://nutrition.test/lookup');
-    config()->set('services.nutrition.key', 'test-key');
-    config()->set('services.nutrition.language', 'en');
-    config()->set('services.nutrition.country', 'us');
-
-    Http::fake([
-        'https://nutrition.test/lookup/*' => Http::response([
-            'product' => [
+    mock(OpenFoodFactsClient::class, function ($mock) {
+        $mock->shouldReceive('barcode')
+            ->once()
+            ->with('0099887766554')
+            ->andReturn([
                 'product_name' => 'API Macro Bar',
                 'serving_size' => '45 g',
                 'serving_quantity' => '45',
@@ -147,9 +146,8 @@ test('barcode lookup falls back to an external nutrition service when needed', f
                     'carbohydrates_serving' => 22,
                     'fat_serving' => 6,
                 ],
-            ],
-        ], 200),
-    ]);
+            ]);
+    });
 
     $user = User::factory()->create();
 
@@ -171,18 +169,9 @@ test('barcode lookup falls back to an external nutrition service when needed', f
         ->assertJsonPath('food.fat_total', 6)
         ->assertJsonPath('food.reference_quantity', 45);
 
-    Http::assertSent(function ($request) {
-        $url = $request->url();
-        $queryString = parse_url($url, PHP_URL_QUERY) ?? '';
-        parse_str($queryString, $params);
-
-        return str_starts_with($url, 'https://nutrition.test/lookup/0099887766554.json')
-            && $request->method() === 'GET'
-            && ($params['fields'] ?? null) === 'product_name,product_name_en,serving_size,serving_quantity,product_quantity,product_quantity_unit,nutriments'
-            && ($params['lc'] ?? null) === 'en'
-            && ($params['cc'] ?? null) === 'us'
-            && $request->hasHeader('Authorization', 'Bearer test-key');
-    });
+    /** @var \Mockery\MockInterface $client */
+    $client = app(OpenFoodFactsClient::class);
+    $client->shouldHaveReceived('barcode')->once();
 });
 
 test('dashboard summary includes macros, burns, and remaining goals', function () {

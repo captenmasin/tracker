@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Support\Facades\Http;
+use OpenFoodFacts\Laravel\OpenFoodFacts as OpenFoodFactsClient;
+
+use function Pest\Laravel\mock;
 
 test('guests must authenticate before searching for foods', function () {
     $response = $this->getJson(route('foods.search', ['query' => 'apple']));
@@ -10,13 +12,11 @@ test('guests must authenticate before searching for foods', function () {
 });
 
 test('search returns normalized results from the nutrition service', function () {
-    config()->set('services.nutrition.search_endpoint', 'https://nutrition.test/search');
-    config()->set('services.nutrition.language', 'en');
-    config()->set('services.nutrition.country', 'us');
-
-    Http::fake([
-        'https://nutrition.test/search*' => Http::response([
-            'products' => [
+    mock(OpenFoodFactsClient::class, function ($mock) {
+        $mock->shouldReceive('find')
+            ->once()
+            ->with('macro bar')
+            ->andReturn(collect([
                 [
                     'code' => '009988776655',
                     'product_name' => 'Macro Bar Deluxe',
@@ -28,9 +28,8 @@ test('search returns normalized results from the nutrition service', function ()
                         'fat_serving' => 6,
                     ],
                 ],
-            ],
-        ]),
-    ]);
+            ]));
+    });
 
     $user = User::factory()->create();
     $this->actingAs($user);
@@ -57,20 +56,9 @@ test('search returns normalized results from the nutrition service', function ()
         ->assertJsonPath('results.0.fat', 6)
         ->assertJsonPath('results.0.source', 'external');
 
-    Http::assertSent(function ($request) {
-        $url = $request->url();
-        $queryString = parse_url($url, PHP_URL_QUERY) ?? '';
-        parse_str($queryString, $params);
-
-        return str_starts_with($url, 'https://nutrition.test/search')
-            && $request->method() === 'GET'
-            && ($params['search_terms'] ?? null) === 'macro bar'
-            && ($params['page_size'] ?? null) === '8'
-            && ($params['fields'] ?? null) === 'code,product_name,product_name_en,serving_size,serving_quantity,product_quantity,product_quantity_unit,nutriments'
-            && ($params['lc'] ?? null) === 'en'
-            && ($params['cc'] ?? null) === 'us'
-            && $request->hasHeader('User-Agent');
-    });
+    /** @var \Mockery\MockInterface $mockedClient */
+    $mockedClient = app(OpenFoodFactsClient::class);
+    $mockedClient->shouldHaveReceived('find')->once();
 });
 
 test('search requires at least two characters', function () {
