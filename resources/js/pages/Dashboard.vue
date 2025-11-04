@@ -1270,18 +1270,29 @@ watch(
                 </SheetContent>
             </Sheet>
 
-            <div class="grid gap-4 lg:grid-cols-3">
-                <Card class="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle class="flex items-center gap-2">
-                            <Flame class="size-5 text-primary"/>
-                            Calories burned
-                        </CardTitle>
-                        <CardDescription>
-                            Track exercise and adjustments to lower your net calories.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+            <Sheet>
+                <SheetTrigger as-child>
+                    <Button
+                        type="button"
+                        class="inline-flex items-center gap-2"
+                    >
+                        <Flame class="size-4"/>
+                        Log calories burned
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom">
+                    <SheetHeader>
+                        <SheetTitle>
+                                        <span class="flex items-center gap-2">
+                                            <Flame class="size-5 text-primary"/>
+                                            Log calories burned
+                                        </span>
+                        </SheetTitle>
+                        <SheetDescription>
+                            Record workouts or other adjustments that reduce your net calories.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div class="p-4 pt-0">
                         <form @submit.prevent="submitBurn" class="grid gap-4 sm:grid-cols-2 sm:gap-6">
                             <div class="grid gap-2">
                                 <Label for="burn_calories">Calories burned</Label>
@@ -1317,7 +1328,7 @@ watch(
                                 />
                                 <InputError :message="burnForm.errors.description"/>
                             </div>
-                            <div class="sm:col-span-2">
+                            <div class="sm:col-span-2 flex items-center gap-3">
                                 <Button
                                     type="submit"
                                     class="inline-flex items-center gap-2"
@@ -1328,9 +1339,11 @@ watch(
                                 </Button>
                             </div>
                         </form>
-                    </CardContent>
-                </Card>
+                    </div>
+                </SheetContent>
+            </Sheet>
 
+            <div class="grid gap-4 lg:grid-cols-3">
                 <Card>
                     <CardHeader>
                         <CardTitle>Weekly snapshot</CardTitle>
