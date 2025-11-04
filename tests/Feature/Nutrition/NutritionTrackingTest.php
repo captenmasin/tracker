@@ -262,3 +262,101 @@ test('dashboard summary includes macros, burns, and remaining goals', function (
         ->where('summary.macros.carb.consumed', 55)
         ->where('summary.macros.fat.consumed', 17));
 });
+
+test('weekly overview page provides goal comparisons', function () {
+    $date = Carbon::parse('2025-10-30');
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    MacroGoal::factory()->for($user)->create([
+        'daily_calorie_goal' => 2000,
+        'protein_percentage' => 30,
+        'carb_percentage' => 40,
+        'fat_percentage' => 30,
+    ]);
+
+    FoodEntry::factory()->for($user)->create([
+        'food_id' => null,
+        'name' => 'Protein bowl',
+        'calories' => 500,
+        'protein_grams' => 40,
+        'carb_grams' => 35,
+        'fat_grams' => 12,
+        'consumed_on' => $date,
+        'quantity' => 1,
+        'source' => FoodEntry::SOURCE_MANUAL,
+    ]);
+
+    FoodEntry::factory()->for($user)->create([
+        'food_id' => null,
+        'name' => 'Recovery shake',
+        'calories' => 220,
+        'protein_grams' => 18,
+        'carb_grams' => 20,
+        'fat_grams' => 5,
+        'consumed_on' => $date,
+        'quantity' => 1,
+        'source' => FoodEntry::SOURCE_MANUAL,
+    ]);
+
+    FoodEntry::factory()->for($user)->create([
+        'food_id' => null,
+        'name' => 'Carb load',
+        'calories' => 600,
+        'protein_grams' => 20,
+        'carb_grams' => 90,
+        'fat_grams' => 10,
+        'consumed_on' => $date->copy()->subDay(),
+        'quantity' => 1,
+        'source' => FoodEntry::SOURCE_MANUAL,
+    ]);
+
+    CalorieBurnEntry::factory()->for($user)->create([
+        'calories' => 320,
+        'recorded_on' => $date->copy()->subDays(2),
+        'description' => 'Intervals session',
+    ]);
+
+    $response = $this->get(route('dashboard.weekly', ['date' => $date->toDateString()]));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->component('Dashboard/WeeklyOverview')
+        ->where('week.start', '2025-10-24')
+        ->where('week.end', '2025-10-30')
+        ->where('week.days', function ($days) use ($date) {
+            if (count($days) !== 7) {
+                return false;
+            }
+
+            $selectedDay = collect($days)->firstWhere('date', $date->toDateString());
+            $previousDay = collect($days)->firstWhere('date', $date->copy()->subDay()->toDateString());
+
+            if ($selectedDay === null || $previousDay === null) {
+                return false;
+            }
+
+            return abs($selectedDay['calories'] - 720) < 0.01
+                && abs($previousDay['calories'] - 600) < 0.01;
+        })
+        ->where('week.totals.protein', 78.0)
+        ->where('week.totals.carb', 145.0)
+        ->where('week.totals.fat', 27.0)
+        ->where('macroGoal.targets.protein', fn ($value) => abs($value - 150) < 0.1)
+        ->where('date.current', $date->toDateString())
+        ->where('date.previous', $date->copy()->subWeek()->toDateString())
+        ->where('date.next', $date->copy()->addWeek()->toDateString())
+        ->where('foods', function ($foods) {
+            if (count($foods) !== 3) {
+                return false;
+            }
+
+            $carbLoad = collect($foods)->firstWhere('name', 'Carb load');
+
+            return $carbLoad !== null
+                && abs($carbLoad['carb'] - 90) < 0.01
+                && collect($foods)->every(fn ($food) => isset($food['calories'], $food['weekday']));
+        })
+        ->where('burns.0.calories', 320)
+        ->where('burns.0.description', 'Intervals session'));
+});

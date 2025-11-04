@@ -3,7 +3,6 @@ import FoodBarcodeController from '@/actions/App/Http/Controllers/FoodBarcodeCon
 import FoodSearchController from '@/actions/App/Http/Controllers/FoodSearchController';
 import CalorieBurnEntryController from '@/actions/App/Http/Controllers/CalorieBurnEntryController';
 import FoodEntryController from '@/actions/App/Http/Controllers/FoodEntryController';
-import BarcodeScanner from '@/Pages/Dashboard/components/BarcodeScanner.vue';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import InputError from '@/components/InputError.vue';
 import {Badge} from '@/components/ui/badge';
@@ -15,6 +14,13 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Carousel,
+    CarouselContent,
+    CarouselItem,
+    CarouselNext,
+    CarouselPrevious,
+} from '@/components/ui/carousel';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -37,6 +43,7 @@ import {
 } from 'lucide-vue-next';
 import {computed, nextTick, ref, watch} from 'vue';
 import {toast} from 'vue-sonner';
+import BarcodeScanner from "@/pages/Dashboard/components/BarcodeScanner.vue";
 
 type MacroKey = 'protein' | 'carb' | 'fat';
 
@@ -1080,216 +1087,227 @@ watch(
                 </div>
             </div>
 
-            <Card>
-                <CardHeader class="space-y-2">
-                    <CardTitle class="text-lg font-semibold">Daily summary</CardTitle>
-                    <CardDescription>
-                        How today’s intake stacks up for {{ summary.date.display }}.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
-                        <div class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-                            <div class="relative h-40 w-40 p-2">
-                                <svg class="h-full w-full" viewBox="0 0 100 100">
-                                    <circle
-                                        class="stroke-slate-300 text-slate-300"
-                                        stroke-width="5"
-                                        stroke="currentColor"
-                                        fill="transparent"
-                                        :r="summaryCircleRadius"
-                                        cx="50"
-                                        cy="50"
-                                    />
-                                    <circle
-                                        v-if="summaryProgressPercentage !== null"
-                                        class="stroke-current text-primary transition-all"
-                                        stroke-width="5"
-                                        stroke-linecap="round"
-                                        stroke="currentColor"
-                                        fill="transparent"
-                                        :r="summaryCircleRadius"
-                                        cx="50"
-                                        cy="50"
-                                        :style="summaryCircleStyle(summaryProgressPercentage)"
-                                        transform="rotate(-90 50 50)"
-                                    />
-                                    <text
-                                        x="50"
-                                        y="50"
-                                        text-anchor="middle"
-                                        class="text-xl font-semibold text-foreground"
-                                    >
-                                        {{ summaryCircleDisplay }}
-                                    </text>
-                                    <text
-                                        x="50"
-                                        y="66"
-                                        text-anchor="middle"
-                                        class="text-xs font-medium text-muted-foreground"
-                                    >
-                                        kcal
-                                    </text>
-                                </svg>
-                            </div>
-                            <div class="grid w-full max-w-sm gap-3 text-sm">
-                                <div
-                                    class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
-                                >
-                                    <span class="flex items-center gap-2 text-muted-foreground">
-                                        <UtensilsCrossed class="size-4"/>
-                                        Consumed
-                                    </span>
-                                    <span class="font-semibold text-foreground">
-                                        {{ caloriesFormatter.format(summary.calories.consumed) }} kcal
-                                    </span>
-                                </div>
-                                <div
-                                    class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
-                                >
-                                    <span class="flex items-center gap-2 text-muted-foreground">
-                                        <Flame class="size-4"/>
-                                        Burned
-                                    </span>
-                                    <span class="font-semibold text-foreground">
-                                        {{ caloriesFormatter.format(summary.calories.burned) }} kcal
-                                    </span>
-                                </div>
-                                <div
-                                    class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
-                                >
-                                    <span class="text-muted-foreground">Goal</span>
-                                    <span class="font-semibold text-foreground">
-                                        {{ summaryGoalLabel }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+            
+                        <Carousel class="relative">
+                <CarouselContent class="pb-2">
+                    <CarouselItem>
+                        <Card>
+                                        <CardHeader class="space-y-2">
+                                            <CardTitle class="text-lg font-semibold">Daily summary</CardTitle>
+                                            <CardDescription>
+                                                How today’s intake stacks up for {{ summary.date.display }}.
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
+                                                <div class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
+                                                    <div class="relative h-40 w-40 p-2">
+                                                        <svg class="h-full w-full" viewBox="0 0 100 100">
+                                                            <circle
+                                                                class="stroke-slate-300 text-slate-300"
+                                                                stroke-width="5"
+                                                                stroke="currentColor"
+                                                                fill="transparent"
+                                                                :r="summaryCircleRadius"
+                                                                cx="50"
+                                                                cy="50"
+                                                            />
+                                                            <circle
+                                                                v-if="summaryProgressPercentage !== null"
+                                                                class="stroke-current text-primary transition-all"
+                                                                stroke-width="5"
+                                                                stroke-linecap="round"
+                                                                stroke="currentColor"
+                                                                fill="transparent"
+                                                                :r="summaryCircleRadius"
+                                                                cx="50"
+                                                                cy="50"
+                                                                :style="summaryCircleStyle(summaryProgressPercentage)"
+                                                                transform="rotate(-90 50 50)"
+                                                            />
+                                                            <text
+                                                                x="50"
+                                                                y="50"
+                                                                text-anchor="middle"
+                                                                class="text-xl font-semibold text-foreground"
+                                                            >
+                                                                {{ summaryCircleDisplay }}
+                                                            </text>
+                                                            <text
+                                                                x="50"
+                                                                y="66"
+                                                                text-anchor="middle"
+                                                                class="text-xs font-medium text-muted-foreground"
+                                                            >
+                                                                kcal
+                                                            </text>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="grid w-full max-w-sm gap-3 text-sm">
+                                                        <div
+                                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                                        >
+                                                            <span class="flex items-center gap-2 text-muted-foreground">
+                                                                <UtensilsCrossed class="size-4"/>
+                                                                Consumed
+                                                            </span>
+                                                            <span class="font-semibold text-foreground">
+                                                                {{ caloriesFormatter.format(summary.calories.consumed) }} kcal
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                                        >
+                                                            <span class="flex items-center gap-2 text-muted-foreground">
+                                                                <Flame class="size-4"/>
+                                                                Burned
+                                                            </span>
+                                                            <span class="font-semibold text-foreground">
+                                                                {{ caloriesFormatter.format(summary.calories.burned) }} kcal
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                                        >
+                                                            <span class="text-muted-foreground">Goal</span>
+                                                            <span class="font-semibold text-foreground">
+                                                                {{ summaryGoalLabel }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                    </CarouselItem>
+                    <CarouselItem>
+                        <Card>
+                                        <CardHeader class="space-y-2">
+                                            <CardTitle class="text-lg font-semibold">Macronutrients</CardTitle>
+                                            <CardDescription>
+                                                Protein, carb, and fat progress for {{ summary.date.display }}.
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div class="grid gap-6 lg:grid-cols-3 lg:gap-8">
+                                                <div
+                                                    v-for="macro in macroList"
+                                                    :key="macro.key"
+                                                    class="space-y-0"
+                                                >
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <p class="text-sm w-full text-center font-medium text-muted-foreground">
+                                                            {{ macro.label }}
+                                                        </p>
+                                                    </div>
+                                                    <div class="flex flex-col items-center gap-0 text-center">
+                                                        <div class="relative h-32 w-32">
+                                                            <svg class="h-full w-full" viewBox="0 0 100 100">
+                                                                <circle
+                                                                    class="stroke-slate-200 text-slate-200"
+                                                                    stroke-width="5"
+                                                                    stroke="currentColor"
+                                                                    fill="transparent"
+                                                                    :r="macroCircleRadius"
+                                                                    cx="50"
+                                                                    cy="50"
+                                                                />
+                                                                <circle
+                                                                    :class="['stroke-current', macroAccentClass(macro.key)]"
+                                                                    stroke-width="5"
+                                                                    stroke-linecap="round"
+                                                                    stroke="currentColor"
+                                                                    fill="transparent"
+                                                                    :r="macroCircleRadius"
+                                                                    cx="50"
+                                                                    cy="50"
+                                                                    :style="macroCircleStyle(macro.progress.percentage)"
+                                                                    transform="rotate(-90 50 50)"
+                                                                />
+                                                                <text
+                                                                    x="50"
+                                                                    y="50"
+                                                                    text-anchor="middle"
+                                                                    :class="['text-xl font-semibold fill-current text-slate-600']"
+                                                                >
+                                                                    {{ gramsFormatter.format(macro.progress.consumed) }}g
+                                                                </text>
+                                                                <text
+                                                                    v-if="macro.progress.goal !== null"
+                                                                    x="50"
+                                                                    y="68"
+                                                                    text-anchor="middle"
+                                                                    class="text-xs font-medium text-slate-600 opacity-50"
+                                                                >
+                                                                    / {{ gramsFormatter.format(macro.progress.goal) }}g
+                                                                </text>
+                                                                <text
+                                                                    v-else
+                                                                    x="50"
+                                                                    y="66"
+                                                                    text-anchor="middle"
+                                                                    class="text-xs font-medium text-muted-foreground"
+                                                                >
+                                                                    Goal not set
+                                                                </text>
+                                                            </svg>
+                                                        </div>
+                                                        <p v-if="macro.progress.remaining !== null" class="text-sm text-muted-foreground">
+                                                            {{ gramsFormatter.format(macro.progress.remaining) }}g left
+                                                        </p>
+                                                        <p v-else class="text-sm text-muted-foreground">
+                                                            Set a goal to track remaining grams.
+                                                        </p>
+                                                        <p
+                                                            v-if="macro.progress.allowance > 0"
+                                                            :class="['text-xs mt-1', macroAccentClass(macro.key)]"
+                                                        >
+                                                            Includes {{ gramsFormatter.format(macro.progress.allowance) }}g burn allowance.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-8 space-y-3">
+                                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Goal vs actual</p>
+                                                <div
+                                                    v-for="macro in dailyMacroPercentages"
+                                                    :key="`daily-percent-${macro.key}`"
+                                                    class="space-y-2"
+                                                >
+                                                    <div class="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                                                        <span>{{ macro.label }}</span>
+                                                        <span>
+                                                            {{ formatPercentage(macro.actualPercent) }}
+                                                            <template v-if="macro.goalPercent !== null">
+                                                                / {{ formatPercentage(macro.goalPercent) }}
+                                                            </template>
+                                                        </span>
+                                                    </div>
+                                                    <div class="relative h-2 overflow-hidden rounded-full bg-muted">
+                                                        <div
+                                                            :class="['absolute inset-y-0 rounded-full', macroBarClass(macro.key)]"
+                                                            :style="{
+                                                                width: `${Math.min(100, Math.max(0, macro.actualPercent ?? 0))}%`,
+                                                            }"
+                                                        />
+                                                        <div
+                                                            v-if="macro.goalPercent !== null"
+                                                            class="absolute inset-y-0 w-[2px] bg-foreground/60"
+                                                            :style="{
+                                                                left: `${Math.min(100, Math.max(0, macro.goalPercent))}%`,
+                                                            }"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                    </CarouselItem>
+                </CarouselContent>
+                <CarouselPrevious class="left-4 bottom-4 top-auto translate-y-0" />
+                <CarouselNext class="right-4 bottom-4 top-auto translate-y-0" />
+            </Carousel>
 
-            <Card>
-                <CardHeader class="space-y-2">
-                    <CardTitle class="text-lg font-semibold">Macronutrients</CardTitle>
-                    <CardDescription>
-                        Protein, carb, and fat progress for {{ summary.date.display }}.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div class="grid gap-6 lg:grid-cols-3 lg:gap-8">
-                        <div
-                            v-for="macro in macroList"
-                            :key="macro.key"
-                            class="space-y-0"
-                        >
-                            <div class="flex items-center justify-between gap-3">
-                                <p class="text-sm w-full text-center font-medium text-muted-foreground">
-                                    {{ macro.label }}
-                                </p>
-                            </div>
-                            <div class="flex flex-col items-center gap-0 text-center">
-                                <div class="relative h-32 w-32">
-                                    <svg class="h-full w-full" viewBox="0 0 100 100">
-                                        <circle
-                                            class="stroke-slate-200 text-slate-200"
-                                            stroke-width="5"
-                                            stroke="currentColor"
-                                            fill="transparent"
-                                            :r="macroCircleRadius"
-                                            cx="50"
-                                            cy="50"
-                                        />
-                                        <circle
-                                            :class="['stroke-current', macroAccentClass(macro.key)]"
-                                            stroke-width="5"
-                                            stroke-linecap="round"
-                                            stroke="currentColor"
-                                            fill="transparent"
-                                            :r="macroCircleRadius"
-                                            cx="50"
-                                            cy="50"
-                                            :style="macroCircleStyle(macro.progress.percentage)"
-                                            transform="rotate(-90 50 50)"
-                                        />
-                                        <text
-                                            x="50"
-                                            y="50"
-                                            text-anchor="middle"
-                                            :class="['text-xl font-semibold fill-current text-slate-600']"
-                                        >
-                                            {{ gramsFormatter.format(macro.progress.consumed) }}g
-                                        </text>
-                                        <text
-                                            v-if="macro.progress.goal !== null"
-                                            x="50"
-                                            y="68"
-                                            text-anchor="middle"
-                                            class="text-xs font-medium text-slate-600 opacity-50"
-                                        >
-                                            / {{ gramsFormatter.format(macro.progress.goal) }}g
-                                        </text>
-                                        <text
-                                            v-else
-                                            x="50"
-                                            y="66"
-                                            text-anchor="middle"
-                                            class="text-xs font-medium text-muted-foreground"
-                                        >
-                                            Goal not set
-                                        </text>
-                                    </svg>
-                                </div>
-                                <p v-if="macro.progress.remaining !== null" class="text-sm text-muted-foreground">
-                                    {{ gramsFormatter.format(macro.progress.remaining) }}g left
-                                </p>
-                                <p v-else class="text-sm text-muted-foreground">
-                                    Set a goal to track remaining grams.
-                                </p>
-                                <p
-                                    v-if="macro.progress.allowance > 0"
-                                    :class="['text-xs mt-1', macroAccentClass(macro.key)]"
-                                >
-                                    Includes {{ gramsFormatter.format(macro.progress.allowance) }}g burn allowance.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-8 space-y-3">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Goal vs actual</p>
-                        <div
-                            v-for="macro in dailyMacroPercentages"
-                            :key="`daily-percent-${macro.key}`"
-                            class="space-y-2"
-                        >
-                            <div class="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                                <span>{{ macro.label }}</span>
-                                <span>
-                                    {{ formatPercentage(macro.actualPercent) }}
-                                    <template v-if="macro.goalPercent !== null">
-                                        / {{ formatPercentage(macro.goalPercent) }}
-                                    </template>
-                                </span>
-                            </div>
-                            <div class="relative h-2 overflow-hidden rounded-full bg-muted">
-                                <div
-                                    :class="['absolute inset-y-0 rounded-full', macroBarClass(macro.key)]"
-                                    :style="{
-                                        width: `${Math.min(100, Math.max(0, macro.actualPercent ?? 0))}%`,
-                                    }"
-                                />
-                                <div
-                                    v-if="macro.goalPercent !== null"
-                                    class="absolute inset-y-0 w-[2px] bg-foreground/60"
-                                    :style="{
-                                        left: `${Math.min(100, Math.max(0, macro.goalPercent))}%`,
-                                    }"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             <Sheet>
                 <SheetTrigger as-child>

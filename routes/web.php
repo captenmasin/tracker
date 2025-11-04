@@ -6,6 +6,7 @@ use App\Http\Controllers\FoodBarcodeController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\FoodEntryController;
 use App\Http\Controllers\FoodSearchController;
+use App\Http\Controllers\WeeklyOverviewController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -18,6 +19,7 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('dashboard/weekly', WeeklyOverviewController::class)->name('dashboard.weekly');
 
     Route::resource('foods', FoodController::class)
         ->only(['store', 'update', 'destroy']);
