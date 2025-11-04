@@ -672,11 +672,11 @@ const summaryCircleLabel = computed(() => {
     }
 
     if (remaining > 0) {
-        return 'kcal remaining';
+        return 'kcal left';
     }
 
     if (remaining < 0) {
-        return 'kcal over goal';
+        return 'kcal over';
     }
 
     return 'Goal met';
@@ -1438,7 +1438,7 @@ watch(
                                 </div>
                             </div>
 
-                            <div class="grid gap-2 sm:grid-cols-3">
+                            <div class="grid gap-2 grid-cols-3">
                                 <div class="grid gap-2">
                                     <Label for="manual_protein">Protein (g)</Label>
                                     <Input
@@ -1480,20 +1480,6 @@ watch(
                                 </div>
                             </div>
 
-                            <div class="grid gap-2 sm:grid-cols-2">
-                                <div class="grid gap-2">
-                                    <Label for="manual_consumed_on">Date</Label>
-                                    <Input
-                                        id="manual_consumed_on"
-                                        v-model="manualForm.consumed_on"
-                                        name="consumed_on"
-                                        type="date"
-                                        required
-                                    />
-                                    <InputError :message="manualForm.errors.consumed_on"/>
-                                </div>
-                            </div>
-
                             <div
                                 class="grid grid-cols-2 gap-3 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground md:grid-cols-4"
                             >
@@ -1504,6 +1490,19 @@ watch(
                             </div>
 
                             <div class="flex flex-wrap items-center gap-3">
+                                <div class="grid gap-2">
+                                    <div class="grid gap-2">
+                                        <Input
+                                            id="manual_consumed_on"
+                                            v-model="manualForm.consumed_on"
+                                            name="consumed_on"
+                                            type="date"
+                                            required
+                                        />
+                                        <InputError :message="manualForm.errors.consumed_on"/>
+                                    </div>
+                                </div>
+
                                 <Button
                                     type="submit"
                                     class="inline-flex items-center gap-2"

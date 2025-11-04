@@ -53,7 +53,7 @@ const progressStyle = computed<CircleStyle>(() => {
 </script>
 
 <template>
-  <div :class="cn('relative h-40 w-40 p-2', props.class)">
+  <div :class="cn('relative h-40 w-40', props.class)">
     <svg class="h-full w-full" viewBox="0 0 100 100">
       <circle
         class="stroke-slate-200 text-slate-200"
