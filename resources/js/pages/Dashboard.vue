@@ -14,17 +14,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    Carousel,
-    CarouselContent,
-    CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
-} from '@/components/ui/carousel';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import {Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger} from '@/components/ui/sheet';
+import {Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger} from '@/components/ui/sheet';
 import nutrition from '@/routes/nutrition';
 import {dashboard} from '@/routes';
 import {type BreadcrumbItem} from '@/types';
@@ -44,6 +37,7 @@ import {
 import {computed, nextTick, ref, watch} from 'vue';
 import {toast} from 'vue-sonner';
 import BarcodeScanner from "@/pages/Dashboard/components/BarcodeScanner.vue";
+import SummaryProgressCircle from "@/pages/Dashboard/components/SummaryProgressCircle.vue";
 
 type MacroKey = 'protein' | 'carb' | 'fat';
 
@@ -551,7 +545,7 @@ const performExternalSearch = async () => {
 };
 
 const applySearchResult = (result: FoodSearchResult) => {
-    const { referenceQuantity, servingUnit } = loadExternalNutrition(result, {
+    const {referenceQuantity, servingUnit} = loadExternalNutrition(result, {
         barcode: typeof result.barcode === 'string' ? result.barcode : null,
     });
 
@@ -633,28 +627,6 @@ const macroCircleStyle = (percentage: number | null): CircleStyle => {
     };
 };
 
-const summaryCircleRadius = 48;
-const summaryCircleCircumference = 2 * Math.PI * summaryCircleRadius;
-
-const summaryCircleStyle = (percentage: number | null): CircleStyle => {
-    const circumference = summaryCircleCircumference;
-
-    if (percentage === null) {
-        return {
-            strokeDasharray: `${circumference} ${circumference}`,
-            strokeDashoffset: circumference,
-        };
-    }
-
-    const clamped = Math.min(Math.max(percentage, 0), 100);
-    const offset = circumference - (clamped / 100) * circumference;
-
-    return {
-        strokeDasharray: `${circumference} ${circumference}`,
-        strokeDashoffset: offset,
-    };
-};
-
 const calorieGoal = computed(() => {
     if (summary.value.calories.goal !== null) {
         return summary.value.calories.goal;
@@ -676,24 +648,38 @@ const summaryProgressPercentage = computed(() => {
     return Math.min((clampedNet / goal) * 100, 100);
 });
 
-const summaryCircleCalories = computed(() => {
+const summaryCircleDisplay = computed(() => {
     const remaining = summary.value.calories.remaining;
 
     if (remaining === null) {
-        return null;
-    }
-
-    return remaining;
-});
-
-const summaryCircleDisplay = computed(() => {
-    const calories = summaryCircleCalories.value;
-
-    if (calories === null) {
         return '--';
     }
 
-    return caloriesFormatter.format(calories);
+    return caloriesFormatter.format(Math.abs(remaining));
+});
+
+const summaryCircleLabel = computed(() => {
+    const goal = calorieGoal.value;
+
+    if (!goal || goal <= 0) {
+        return 'Goal not set';
+    }
+
+    const remaining = summary.value.calories.remaining;
+
+    if (remaining === null) {
+        return 'Goal data unavailable';
+    }
+
+    if (remaining > 0) {
+        return 'kcal remaining';
+    }
+
+    if (remaining < 0) {
+        return 'kcal over goal';
+    }
+
+    return 'Goal met';
 });
 
 const summaryRemainingLabel = computed(() => {
@@ -966,7 +952,7 @@ const handleBarcodeDetected = async (value: string) => {
             }
 
             if (data.source === 'external' && data.food) {
-                const { referenceQuantity, servingUnit } = loadExternalNutrition(data.food, {
+                const {referenceQuantity, servingUnit} = loadExternalNutrition(data.food, {
                     barcode: trimmed,
                 });
 
@@ -1037,7 +1023,7 @@ watch(
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Dashboard"/>
 
-        <div class="flex flex-col gap-6 p-4">
+        <div class="flex flex-col gap-6 p-4 pb-32">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div class="space-y-1">
                     <h1 class="text-2xl font-semibold">Daily nutrition overview</h1>
@@ -1087,712 +1073,528 @@ watch(
                 </div>
             </div>
 
-            
-                        <Carousel class="relative">
-                <CarouselContent class="pb-2">
-                    <CarouselItem>
+
+
                         <Card>
-                                        <CardHeader class="space-y-2">
-                                            <CardTitle class="text-lg font-semibold">Daily summary</CardTitle>
-                                            <CardDescription>
-                                                How today’s intake stacks up for {{ summary.date.display }}.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
-                                                <div class="flex flex-col items-center gap-6 text-center lg:items-start lg:text-left">
-                                                    <div class="relative h-40 w-40 p-2">
-                                                        <svg class="h-full w-full" viewBox="0 0 100 100">
-                                                            <circle
-                                                                class="stroke-slate-300 text-slate-300"
-                                                                stroke-width="5"
-                                                                stroke="currentColor"
-                                                                fill="transparent"
-                                                                :r="summaryCircleRadius"
-                                                                cx="50"
-                                                                cy="50"
-                                                            />
-                                                            <circle
-                                                                v-if="summaryProgressPercentage !== null"
-                                                                class="stroke-current text-primary transition-all"
-                                                                stroke-width="5"
-                                                                stroke-linecap="round"
-                                                                stroke="currentColor"
-                                                                fill="transparent"
-                                                                :r="summaryCircleRadius"
-                                                                cx="50"
-                                                                cy="50"
-                                                                :style="summaryCircleStyle(summaryProgressPercentage)"
-                                                                transform="rotate(-90 50 50)"
-                                                            />
-                                                            <text
-                                                                x="50"
-                                                                y="50"
-                                                                text-anchor="middle"
-                                                                class="text-xl font-semibold text-foreground"
-                                                            >
-                                                                {{ summaryCircleDisplay }}
-                                                            </text>
-                                                            <text
-                                                                x="50"
-                                                                y="66"
-                                                                text-anchor="middle"
-                                                                class="text-xs font-medium text-muted-foreground"
-                                                            >
-                                                                kcal
-                                                            </text>
-                                                        </svg>
-                                                    </div>
-                                                    <div class="grid w-full max-w-sm gap-3 text-sm">
-                                                        <div
-                                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
-                                                        >
+                            <CardHeader class="space-y-2">
+                                <CardTitle class="text-lg font-semibold">Daily summary</CardTitle>
+                                <CardDescription>
+                                    How today’s intake stacks up for {{ summary.date.display }}.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
+                                    <SummaryProgressCircle
+                                        :percentage="summaryProgressPercentage"
+                                        :display-value="summaryCircleDisplay"
+                                        :label="summaryCircleLabel"
+                                    />
+                                    <div class="grid w-full max-w-sm gap-3 text-sm">
+                                        <div
+                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                        >
                                                             <span class="flex items-center gap-2 text-muted-foreground">
                                                                 <UtensilsCrossed class="size-4"/>
                                                                 Consumed
                                                             </span>
-                                                            <span class="font-semibold text-foreground">
+                                            <span class="font-semibold text-foreground">
                                                                 {{ caloriesFormatter.format(summary.calories.consumed) }} kcal
                                                             </span>
-                                                        </div>
-                                                        <div
-                                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
-                                                        >
+                                        </div>
+                                        <div
+                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                        >
                                                             <span class="flex items-center gap-2 text-muted-foreground">
                                                                 <Flame class="size-4"/>
                                                                 Burned
                                                             </span>
-                                                            <span class="font-semibold text-foreground">
+                                            <span class="font-semibold text-foreground">
                                                                 {{ caloriesFormatter.format(summary.calories.burned) }} kcal
                                                             </span>
-                                                        </div>
-                                                        <div
-                                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
-                                                        >
-                                                            <span class="text-muted-foreground">Goal</span>
-                                                            <span class="font-semibold text-foreground">
+                                        </div>
+                                        <div
+                                            class="flex items-center justify-between rounded-lg border border-border/60 bg-muted/20 px-4 py-3"
+                                        >
+                                            <span class="text-muted-foreground">Goal</span>
+                                            <span class="font-semibold text-foreground">
                                                                 {{ summaryGoalLabel }}
                                                             </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                    </CarouselItem>
-                    <CarouselItem>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         <Card>
-                                        <CardHeader class="space-y-2">
-                                            <CardTitle class="text-lg font-semibold">Macronutrients</CardTitle>
-                                            <CardDescription>
-                                                Protein, carb, and fat progress for {{ summary.date.display }}.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div class="grid gap-6 lg:grid-cols-3 lg:gap-8">
-                                                <div
-                                                    v-for="macro in macroList"
-                                                    :key="macro.key"
-                                                    class="space-y-0"
-                                                >
-                                                    <div class="flex items-center justify-between gap-3">
-                                                        <p class="text-sm w-full text-center font-medium text-muted-foreground">
-                                                            {{ macro.label }}
-                                                        </p>
-                                                    </div>
-                                                    <div class="flex flex-col items-center gap-0 text-center">
-                                                        <div class="relative h-32 w-32">
-                                                            <svg class="h-full w-full" viewBox="0 0 100 100">
-                                                                <circle
-                                                                    class="stroke-slate-200 text-slate-200"
-                                                                    stroke-width="5"
-                                                                    stroke="currentColor"
-                                                                    fill="transparent"
-                                                                    :r="macroCircleRadius"
-                                                                    cx="50"
-                                                                    cy="50"
-                                                                />
-                                                                <circle
-                                                                    :class="['stroke-current', macroAccentClass(macro.key)]"
-                                                                    stroke-width="5"
-                                                                    stroke-linecap="round"
-                                                                    stroke="currentColor"
-                                                                    fill="transparent"
-                                                                    :r="macroCircleRadius"
-                                                                    cx="50"
-                                                                    cy="50"
-                                                                    :style="macroCircleStyle(macro.progress.percentage)"
-                                                                    transform="rotate(-90 50 50)"
-                                                                />
-                                                                <text
-                                                                    x="50"
-                                                                    y="50"
-                                                                    text-anchor="middle"
-                                                                    :class="['text-xl font-semibold fill-current text-slate-600']"
-                                                                >
-                                                                    {{ gramsFormatter.format(macro.progress.consumed) }}g
-                                                                </text>
-                                                                <text
-                                                                    v-if="macro.progress.goal !== null"
-                                                                    x="50"
-                                                                    y="68"
-                                                                    text-anchor="middle"
-                                                                    class="text-xs font-medium text-slate-600 opacity-50"
-                                                                >
-                                                                    / {{ gramsFormatter.format(macro.progress.goal) }}g
-                                                                </text>
-                                                                <text
-                                                                    v-else
-                                                                    x="50"
-                                                                    y="66"
-                                                                    text-anchor="middle"
-                                                                    class="text-xs font-medium text-muted-foreground"
-                                                                >
-                                                                    Goal not set
-                                                                </text>
-                                                            </svg>
-                                                        </div>
-                                                        <p v-if="macro.progress.remaining !== null" class="text-sm text-muted-foreground">
-                                                            {{ gramsFormatter.format(macro.progress.remaining) }}g left
-                                                        </p>
-                                                        <p v-else class="text-sm text-muted-foreground">
-                                                            Set a goal to track remaining grams.
-                                                        </p>
-                                                        <p
-                                                            v-if="macro.progress.allowance > 0"
-                                                            :class="['text-xs mt-1', macroAccentClass(macro.key)]"
-                                                        >
-                                                            Includes {{ gramsFormatter.format(macro.progress.allowance) }}g burn allowance.
-                                                        </p>
-                                                    </div>
-                                                </div>
+                            <CardHeader class="space-y-2">
+                                <CardTitle class="text-lg font-semibold">Macronutrients</CardTitle>
+                                <CardDescription>
+                                    Protein, carb, and fat progress for {{ summary.date.display }}.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div class="grid gap-6 lg:grid-cols-3 lg:gap-8">
+                                    <div
+                                        v-for="macro in macroList"
+                                        :key="macro.key"
+                                        class="space-y-0"
+                                    >
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p class="text-sm w-full text-center font-medium text-muted-foreground">
+                                                {{ macro.label }}
+                                            </p>
+                                        </div>
+                                        <div class="flex flex-col items-center gap-0 text-center">
+                                            <div class="relative h-32 w-32">
+                                                <svg class="h-full w-full" viewBox="0 0 100 100">
+                                                    <circle
+                                                        class="stroke-slate-200 text-slate-200"
+                                                        stroke-width="5"
+                                                        stroke="currentColor"
+                                                        fill="transparent"
+                                                        :r="macroCircleRadius"
+                                                        cx="50"
+                                                        cy="50"
+                                                    />
+                                                    <circle
+                                                        :class="['stroke-current', macroAccentClass(macro.key)]"
+                                                        stroke-width="5"
+                                                        stroke-linecap="round"
+                                                        stroke="currentColor"
+                                                        fill="transparent"
+                                                        :r="macroCircleRadius"
+                                                        cx="50"
+                                                        cy="50"
+                                                        :style="macroCircleStyle(macro.progress.percentage)"
+                                                        transform="rotate(-90 50 50)"
+                                                    />
+                                                    <text
+                                                        x="50"
+                                                        y="50"
+                                                        text-anchor="middle"
+                                                        :class="['text-xl font-semibold fill-current text-slate-600']"
+                                                    >
+                                                        {{ gramsFormatter.format(macro.progress.consumed) }}g
+                                                    </text>
+                                                    <text
+                                                        v-if="macro.progress.goal !== null"
+                                                        x="50"
+                                                        y="68"
+                                                        text-anchor="middle"
+                                                        class="text-xs font-medium text-slate-600 opacity-50"
+                                                    >
+                                                        / {{ gramsFormatter.format(macro.progress.goal) }}g
+                                                    </text>
+                                                    <text
+                                                        v-else
+                                                        x="50"
+                                                        y="66"
+                                                        text-anchor="middle"
+                                                        class="text-xs font-medium text-muted-foreground"
+                                                    >
+                                                        Goal not set
+                                                    </text>
+                                                </svg>
                                             </div>
-                                            <div class="mt-8 space-y-3">
-                                                <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Goal vs actual</p>
-                                                <div
-                                                    v-for="macro in dailyMacroPercentages"
-                                                    :key="`daily-percent-${macro.key}`"
-                                                    class="space-y-2"
-                                                >
-                                                    <div class="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                                                        <span>{{ macro.label }}</span>
-                                                        <span>
+                                            <p v-if="macro.progress.remaining !== null" class="text-sm text-muted-foreground">
+                                                {{ gramsFormatter.format(macro.progress.remaining) }}g left
+                                            </p>
+                                            <p v-else class="text-sm text-muted-foreground">
+                                                Set a goal to track remaining grams.
+                                            </p>
+                                            <p
+                                                v-if="macro.progress.allowance > 0"
+                                                :class="['text-xs mt-1', macroAccentClass(macro.key)]"
+                                            >
+                                                Includes {{ gramsFormatter.format(macro.progress.allowance) }}g burn allowance.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-8 space-y-3">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Goal vs actual</p>
+                                    <div
+                                        v-for="macro in dailyMacroPercentages"
+                                        :key="`daily-percent-${macro.key}`"
+                                        class="space-y-2"
+                                    >
+                                        <div class="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                                            <span>{{ macro.label }}</span>
+                                            <span>
                                                             {{ formatPercentage(macro.actualPercent) }}
                                                             <template v-if="macro.goalPercent !== null">
                                                                 / {{ formatPercentage(macro.goalPercent) }}
                                                             </template>
                                                         </span>
-                                                    </div>
-                                                    <div class="relative h-2 overflow-hidden rounded-full bg-muted">
-                                                        <div
-                                                            :class="['absolute inset-y-0 rounded-full', macroBarClass(macro.key)]"
-                                                            :style="{
+                                        </div>
+                                        <div class="relative h-2 overflow-hidden rounded-full bg-muted">
+                                            <div
+                                                :class="['absolute inset-y-0 rounded-full', macroBarClass(macro.key)]"
+                                                :style="{
                                                                 width: `${Math.min(100, Math.max(0, macro.actualPercent ?? 0))}%`,
                                                             }"
-                                                        />
-                                                        <div
-                                                            v-if="macro.goalPercent !== null"
-                                                            class="absolute inset-y-0 w-[2px] bg-foreground/60"
-                                                            :style="{
+                                            />
+                                            <div
+                                                v-if="macro.goalPercent !== null"
+                                                class="absolute inset-y-0 w-[2px] bg-foreground/60"
+                                                :style="{
                                                                 left: `${Math.min(100, Math.max(0, macro.goalPercent))}%`,
                                                             }"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                    </CarouselItem>
-                </CarouselContent>
-                <CarouselPrevious class="left-4 bottom-4 top-auto translate-y-0" />
-                <CarouselNext class="right-4 bottom-4 top-auto translate-y-0" />
-            </Carousel>
-
-
-            <Sheet>
-                <SheetTrigger as-child>
-                    <Button>
-                        Log food
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom">
-                    <SheetHeader>
-                        <SheetTitle>
-                            <span class="flex items-center gap-2">
-                                <UtensilsCrossed class="size-5 text-primary"/>
-                                Log intake
-                            </span>
-                        </SheetTitle>
-                        <SheetDescription>
-                            Scan a barcode or pick from your food library. You can also enter macros manually.
-                        </SheetDescription>
-                        <div class="pt-4">
-
-                            <Tabs v-model="activeIntakeTab" class="w-full">
-                                <TabsList class="grid w-full grid-cols-2">
-                                    <TabsTrigger value="library">
-                                        Library
-                                    </TabsTrigger>
-                                    <TabsTrigger value="manual">
-                                        Manual
-                                    </TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                        </div>
-                    </SheetHeader>
-                    <div class="p-4 pt-0">
-                        <div v-if="activeIntakeTab === 'library'" class="space-y-4">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <Button
-                                    class="w-full"
-                                    type="button"
-                                    variant="default"
-                                    @click="toggleScanner"
-                                >
-                                    <Scan class="size-4"/>
-                                    {{ scannerActive ? 'Stop scanning' : 'Scan barcode' }}
-                                </Button>
-                                <Button
-                                    class="w-full"
-                                    type="button"
-                                    variant="secondary"
-                                    @click="openSearchPanel"
-                                >
-                                    <Search class="size-4"/>
-                                    Search foods
-                                </Button>
-                            </div>
-
-                            <BarcodeScanner
-                                :active="scannerActive"
-                                @detected="handleBarcodeDetected"
-                                @close="scannerActive = false"
-                            />
-
-                            <form @submit.prevent="submitLibrary" class="grid gap-4">
-                                <div class="grid gap-2">
-                                    <Label for="food_id">Food item</Label>
-                                    <select
-                                        id="food_id"
-                                        v-model="libraryForm.food_id"
-                                        name="food_id"
-                                        class="border-input focus-visible:ring-ring/50 focus-visible:ring-[3px] dark:bg-input/30 h-10 rounded-md border bg-transparent px-3 text-sm outline-none transition-[color,box-shadow]"
-                                        required
-                                    >
-                                        <option value="" disabled>Select a food</option>
-                                        <option
-                                            v-for="food in foods"
-                                            :key="food.id"
-                                            :value="food.id"
-                                        >
-                                            {{ food.name }}
-                                            <span v-if="food.barcode">
-                                                — {{ food.barcode }}
-                                            </span>
-                                        </option>
-                                    </select>
-                                    <InputError :message="libraryForm.errors.food_id"/>
-                                </div>
-
-                                <div class="grid gap-2 sm:grid-cols-2">
-                                    <div class="grid gap-2">
-                                        <Label for="library_quantity">Number of servings</Label>
-                                        <Input
-                                            id="library_quantity"
-                                            v-model="libraryForm.quantity"
-                                            name="quantity"
-                                            type="number"
-                                            step="0.01"
-                                            min="0.1"
-                                            required
-                                        />
-                                        <InputError :message="libraryForm.errors.quantity"/>
-                                        <p
-                                            v-if="referenceAmountLabel"
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            1 = whole item (≈ {{ referenceAmountLabel }}
-                                            {{ referenceUnitLabel }}). Use decimals for partial
-                                            amounts.
-                                        </p>
-                                    </div>
-                                    <div class="grid gap-2">
-                                        <Label for="library_consumed_on">Date</Label>
-                                        <Input
-                                            id="library_consumed_on"
-                                            v-model="libraryForm.consumed_on"
-                                            name="consumed_on"
-                                            type="date"
-                                            required
-                                        />
-                                        <InputError :message="libraryForm.errors.consumed_on"/>
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+                            </CardContent>
+                        </Card>
 
-                                <div
-                                    v-if="libraryTotals"
-                                    class="grid grid-cols-2 gap-3 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground md:grid-cols-4"
-                                >
-                                    <p><strong class="text-foreground">≈</strong> {{ caloriesFormatter.format(libraryTotals.calories) }} kcal</p>
-                                    <p><strong class="text-foreground">Protein</strong> {{ gramsFormatter.format(libraryTotals.protein) }}g</p>
-                                    <p><strong class="text-foreground">Carbs</strong> {{ gramsFormatter.format(libraryTotals.carbs) }}g</p>
-                                    <p><strong class="text-foreground">Fat</strong> {{ gramsFormatter.format(libraryTotals.fat) }}g</p>
-                                </div>
 
-                                <div class="flex flex-wrap items-center gap-3">
-                                    <SheetClose as-child>
-                                        <Button
-                                            type="submit"
-                                            class="w-full"
-                                            :disabled="libraryForm.processing"
-                                        >
-                                            <PlusCircle class="size-4"/>
-                                            Log entry
-                                        </Button>
-                                    </SheetClose>
-                                    <InputError :message="libraryForm.errors.source"/>
-                                </div>
-                            </form>
+<nav class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div class="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
+        <Sheet>
+            <SheetTrigger as-child>
+                <Button
+                    type="button"
+                    class="justify-center gap-2"
+                >
+                    <UtensilsCrossed class="size-4"/>
+                    Log food
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom">
+                <SheetHeader>
+                    <SheetTitle>
+                        <span class="flex items-center gap-2">
+                            <UtensilsCrossed class="size-5 text-primary"/>
+                            Log intake
+                        </span>
+                    </SheetTitle>
+                    <SheetDescription>
+                        Scan a barcode or pick from your food library. You can also enter macros manually.
+                    </SheetDescription>
+                    <div class="pt-4">
+
+                        <Tabs v-model="activeIntakeTab" class="w-full">
+                            <TabsList class="grid w-full grid-cols-2">
+                                <TabsTrigger value="library">
+                                    Library
+                                </TabsTrigger>
+                                <TabsTrigger value="manual">
+                                    Manual
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                </SheetHeader>
+                <div class="p-4 pt-0">
+                    <div v-if="activeIntakeTab === 'library'" class="space-y-4">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <Button
+                                class="w-full"
+                                type="button"
+                                variant="default"
+                                @click="toggleScanner"
+                            >
+                                <Scan class="size-4"/>
+                                {{ scannerActive ? 'Stop scanning' : 'Scan barcode' }}
+                            </Button>
+                            <Button
+                                class="w-full"
+                                type="button"
+                                variant="secondary"
+                                @click="openSearchPanel"
+                            >
+                                <Search class="size-4"/>
+                                Search foods
+                            </Button>
                         </div>
 
-                        <div v-else class="space-y-6">
-                            <div class="grid gap-3 rounded-lg border border-border/60 bg-muted/10 p-4">
-                                <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
-                                    <div class="flex-1 space-y-2">
-                                        <Label for="openfood_search">Search Open Food Facts</Label>
-                                        <Input
-                                            id="openfood_search"
-                                            ref="manualSearchInput"
-                                            v-model="searchQuery"
-                                            name="openfood_search"
-                                            type="search"
-                                            placeholder="e.g. Greek yogurt"
-                                            @keydown.enter.prevent="performExternalSearch"
-                                        />
-                                        <p class="text-xs text-muted-foreground">
-                                            Find nutrition details when you do not have a barcode. Powered by Open Food Facts.
-                                        </p>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            class="sm:self-auto"
-                                            :disabled="searchLoading"
-                                            @click="performExternalSearch"
-                                        >
-                                            {{ searchLoading ? 'Searching…' : 'Search' }}
-                                        </Button>
-                                        <Button
-                                            v-if="searchResults.length || searchPerformed"
-                                            type="button"
-                                            variant="ghost"
-                                            class="text-xs"
-                                            :disabled="searchLoading"
-                                            @click="clearExternalSearch"
-                                        >
-                                            Clear
-                                        </Button>
-                                    </div>
-                                </div>
+                        <BarcodeScanner
+                            :active="scannerActive"
+                            @detected="handleBarcodeDetected"
+                            @close="scannerActive = false"
+                        />
 
-                                <p v-if="searchError" class="text-sm text-destructive">
-                                    {{ searchError }}
-                                </p>
-                                <p v-else-if="searchLoading" class="text-sm text-muted-foreground">
-                                    Searching Open Food Facts…
-                                </p>
-                                <ul
-                                    v-else-if="searchResults.length"
-                                    class="grid max-h-60 gap-2 overflow-y-auto pr-1"
+                        <form @submit.prevent="submitLibrary" class="grid gap-4">
+                            <div class="grid gap-2">
+                                <Label for="food_id">Food item</Label>
+                                <select
+                                    id="food_id"
+                                    v-model="libraryForm.food_id"
+                                    name="food_id"
+                                    class="border-input focus-visible:ring-ring/50 focus-visible:ring-[3px] dark:bg-input/30 h-10 rounded-md border bg-transparent px-3 text-sm outline-none transition-[color,box-shadow]"
+                                    required
                                 >
-                                    <li
-                                        v-for="result in searchResults"
-                                        :key="result.barcode ?? result.name"
+                                    <option value="" disabled>Select a food</option>
+                                    <option
+                                        v-for="food in foods"
+                                        :key="food.id"
+                                        :value="food.id"
                                     >
-                                        <button
-                                            type="button"
-                                            class="w-full rounded-md border border-border/60 bg-background/80 px-3 py-2 text-left transition hover:border-primary/60 hover:bg-primary/5"
-                                            @click="applySearchResult(result)"
-                                        >
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div class="space-y-1">
-                                                    <p class="text-sm font-medium text-foreground">
-                                                        {{ result.name }}
-                                                    </p>
-                                                    <p class="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
-                                                        <span v-if="resultCalories(result) !== null">
-                                                            ≈ {{ caloriesFormatter.format(resultCalories(result) ?? 0) }} kcal
-                                                        </span>
-                                                        <span
-                                                            v-if="resultCalories(result) !== null && resultMacroSummary(result)"
-                                                            aria-hidden="true"
-                                                        >
-                                                            ·
-                                                        </span>
-                                                        <span v-if="resultMacroSummary(result)">
-                                                            {{ resultMacroSummary(result) }}
-                                                        </span>
-                                                    </p>
-                                                    <p class="text-xs text-muted-foreground">
-                                                        Serving:
-                                                        {{
-                                                            formatNumericInput(
-                                                                result.serving_size ??
-                                                                    result.reference_quantity ??
-                                                                    result.serving_quantity
-                                                            ) || 'n/a'
-                                                        }}
-                                                        {{ result.serving_unit ?? 'g' }}
-                                                        <span v-if="result.barcode" class="ml-2">
-                                                            • {{ result.barcode }}
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                                <span class="text-xs font-medium text-primary">Use</span>
-                                            </div>
-                                        </button>
-                                    </li>
-                                </ul>
-                                <p v-else-if="searchPerformed" class="text-sm text-muted-foreground">
-                                    No matches found. Try different keywords.
-                                </p>
+                                        {{ food.name }}
+                                        <span v-if="food.barcode">
+                                            — {{ food.barcode }}
+                                        </span>
+                                    </option>
+                                </select>
+                                <InputError :message="libraryForm.errors.food_id"/>
                             </div>
 
-                            <form @submit.prevent="submitManual" class="grid gap-4">
+                            <div class="grid gap-2 sm:grid-cols-2">
                                 <div class="grid gap-2">
-                                    <Label for="manual_name">Food name</Label>
+                                    <Label for="library_quantity">Number of servings</Label>
                                     <Input
-                                        id="manual_name"
-                                        v-model="manualForm.name"
-                                        name="name"
-                                        type="text"
-                                        placeholder="Grilled chicken"
+                                        id="library_quantity"
+                                        v-model="libraryForm.quantity"
+                                        name="quantity"
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
                                         required
                                     />
-                                    <InputError :message="manualForm.errors.name"/>
+                                    <InputError :message="libraryForm.errors.quantity"/>
                                 </div>
-
-                                <div class="grid gap-2 sm:grid-cols-2">
-                                    <div class="grid gap-2">
-                                        <Label for="manual_quantity">Number of servings</Label>
-                                        <Input
-                                            id="manual_quantity"
-                                            v-model="manualForm.quantity"
-                                            name="quantity"
-                                            type="number"
-                                            step="0.01"
-                                            min="0.1"
-                                            required
-                                        />
-                                        <InputError :message="manualForm.errors.quantity"/>
-                                        <p
-                                            v-if="referenceAmountLabel"
-                                            class="text-xs text-muted-foreground"
-                                        >
-                                            1 = whole item (≈ {{ referenceAmountLabel }}
-                                            {{ referenceUnitLabel }}). Use decimals for partial
-                                            amounts.
-                                        </p>
-                                    </div>
-                                    <div class="grid gap-2">
-                                        <Label for="manual_serving_size_value">Serving size</Label>
-                                        <div class="flex gap-2">
-                                            <Input
-                                                id="manual_serving_size_value"
-                                                v-model="manualForm.serving_size_value"
-                                                name="serving_size_value"
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                class="w-full"
-                                            />
-                                            <select
-                                                v-model="manualForm.serving_unit"
-                                                name="serving_unit"
-                                                class="border-input focus-visible:ring-ring/50 focus-visible:ring-[3px] dark:bg-input/30 h-10 rounded-md border bg-transparent px-3 text-sm outline-none transition-[color,box-shadow]"
-                                            >
-                                                <option
-                                                    v-for="option in servingUnitOptions"
-                                                    :key="option.value"
-                                                    :value="option.value"
-                                                >
-                                                    {{ option.label }}
-                                                </option>
-                                            </select>
-                                        </div>
-                                        <InputError :message="manualForm.errors.serving_unit"/>
-                                    </div>
+                                <div class="grid gap-2">
+                                    <Label for="library_consumed_on">Date</Label>
+                                    <Input
+                                        id="library_consumed_on"
+                                        v-model="libraryForm.consumed_on"
+                                        name="consumed_on"
+                                        type="date"
+                                        required
+                                    />
+                                    <InputError :message="libraryForm.errors.consumed_on"/>
                                 </div>
+                            </div>
 
-                                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                                    <div class="grid gap-2">
-                                        <Label for="manual_calories">Calories (per serving)</Label>
-                                        <Input
-                                            id="manual_calories"
-                                            v-model="manualForm.calories"
-                                            name="calories"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            required
-                                        />
-                                        <InputError :message="manualForm.errors.calories"/>
-                                    </div>
-                                    <div class="grid gap-2">
-                                        <Label for="manual_protein">Protein (g)</Label>
-                                        <Input
-                                            id="manual_protein"
-                                            v-model="manualForm.protein_grams"
-                                            name="protein_grams"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            required
-                                        />
-                                        <InputError :message="manualForm.errors.protein_grams"/>
-                                    </div>
-                                    <div class="grid gap-2">
-                                        <Label for="manual_carb">Carbs (g)</Label>
-                                        <Input
-                                            id="manual_carb"
-                                            v-model="manualForm.carb_grams"
-                                            name="carb_grams"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            required
-                                        />
-                                        <InputError :message="manualForm.errors.carb_grams"/>
-                                    </div>
-                                    <div class="grid gap-2">
-                                        <Label for="manual_fat">Fat (g)</Label>
-                                        <Input
-                                            id="manual_fat"
-                                            v-model="manualForm.fat_grams"
-                                            name="fat_grams"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            required
-                                        />
-                                        <InputError :message="manualForm.errors.fat_grams"/>
-                                    </div>
-                                </div>
-
-                                <div class="grid gap-2 sm:grid-cols-2">
-                                    <div class="grid gap-2">
-                                        <Label for="manual_consumed_on">Date</Label>
-                                        <Input
-                                            id="manual_consumed_on"
-                                            v-model="manualForm.consumed_on"
-                                            name="consumed_on"
-                                            type="date"
-                                            required
-                                        />
-                                        <InputError :message="manualForm.errors.consumed_on"/>
-                                    </div>
-                                </div>
-
-                                <div
-                                    class="grid grid-cols-2 gap-3 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground md:grid-cols-4"
+                            <div class="grid gap-2">
+                                <Label for="library_source">Source</Label>
+                                <select
+                                    id="library_source"
+                                    v-model="libraryForm.source"
+                                    name="source"
+                                    class="border-input focus-visible:ring-ring/50 focus-visible:ring-[3px] dark:bg-input/30 h-10 rounded-md border bg-transparent px-3 text-sm outline-none transition-[color,box-shadow]"
+                                    required
                                 >
-                                    <p><strong class="text-foreground">≈</strong> {{ caloriesFormatter.format(manualTotals.calories) }} kcal</p>
-                                    <p><strong class="text-foreground">Protein</strong> {{ gramsFormatter.format(manualTotals.protein) }}g</p>
-                                    <p><strong class="text-foreground">Carbs</strong> {{ gramsFormatter.format(manualTotals.carbs) }}g</p>
-                                    <p><strong class="text-foreground">Fat</strong> {{ gramsFormatter.format(manualTotals.fat) }}g</p>
-                                </div>
+                                    <option value="food">Food library</option>
+                                    <option value="barcode" :disabled="!scannerActive">Barcode scan</option>
+                                </select>
+                                <InputError :message="libraryForm.errors.source"/>
+                            </div>
 
-                                <div class="flex flex-wrap items-center gap-3">
-                                    <Button
-                                        type="submit"
-                                        class="inline-flex items-center gap-2"
-                                        :disabled="manualForm.processing"
-                                    >
-                                        <PlusCircle class="size-4"/>
-                                        Log entry
-                                    </Button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </SheetContent>
-            </Sheet>
-
-            <Sheet>
-                <SheetTrigger as-child>
-                    <Button
-                        type="button"
-                        class="inline-flex items-center gap-2"
-                    >
-                        <Flame class="size-4"/>
-                        Log calories burned
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom">
-                    <SheetHeader>
-                        <SheetTitle>
-                                        <span class="flex items-center gap-2">
-                                            <Flame class="size-5 text-primary"/>
-                                            Log calories burned
-                                        </span>
-                        </SheetTitle>
-                        <SheetDescription>
-                            Record workouts or other adjustments that reduce your net calories.
-                        </SheetDescription>
-                    </SheetHeader>
-                    <div class="p-4 pt-0">
-                        <form @submit.prevent="submitBurn" class="grid gap-4 sm:grid-cols-2 sm:gap-6">
-                            <div class="grid gap-2">
-                                <Label for="burn_calories">Calories burned</Label>
-                                <Input
-                                    id="burn_calories"
-                                    v-model="burnForm.calories"
-                                    name="calories"
-                                    type="number"
-                                    min="0"
-                                    required
-                                />
-                                <InputError :message="burnForm.errors.calories"/>
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="burn_recorded">Date</Label>
-                                <Input
-                                    id="burn_recorded"
-                                    v-model="burnForm.recorded_on"
-                                    name="recorded_on"
-                                    type="date"
-                                    required
-                                />
-                                <InputError :message="burnForm.errors.recorded_on"/>
-                            </div>
-                            <div class="grid gap-2 sm:col-span-2">
-                                <Label for="burn_description">Notes (optional)</Label>
-                                <Input
-                                    id="burn_description"
-                                    v-model="burnForm.description"
-                                    name="description"
-                                    type="text"
-                                    placeholder="Cycling, 30 minutes"
-                                />
-                                <InputError :message="burnForm.errors.description"/>
-                            </div>
-                            <div class="sm:col-span-2 flex items-center gap-3">
+                            <div class="flex flex-wrap items-center gap-3">
                                 <Button
                                     type="submit"
                                     class="inline-flex items-center gap-2"
-                                    :disabled="burnForm.processing"
+                                    :disabled="libraryForm.processing"
                                 >
-                                    <Flame class="size-4"/>
-                                    Log calories burned
+                                    <PlusCircle class="size-4"/>
+                                    Add to log
                                 </Button>
                             </div>
                         </form>
                     </div>
-                </SheetContent>
-            </Sheet>
 
-            <div class="grid gap-4 lg:grid-cols-3">
+                    <div v-else class="space-y-4">
+                        <form @submit.prevent="submitManual" class="grid gap-4">
+                            <div class="grid gap-2">
+                                <Label for="manual_name">Food name</Label>
+                                <Input
+                                    id="manual_name"
+                                    v-model="manualForm.name"
+                                    name="name"
+                                    type="text"
+                                    placeholder="Chicken salad"
+                                    required
+                                />
+                                <InputError :message="manualForm.errors.name"/>
+                            </div>
+
+                            <div class="grid gap-2 sm:grid-cols-2">
+                                <div class="grid gap-2">
+                                    <Label for="manual_calories">Calories</Label>
+                                    <Input
+                                        id="manual_calories"
+                                        v-model="manualForm.calories"
+                                        name="calories"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                    />
+                                    <InputError :message="manualForm.errors.calories"/>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="manual_servings">Servings</Label>
+                                    <Input
+                                        id="manual_servings"
+                                        v-model="manualForm.quantity"
+                                        name="quantity"
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        required
+                                    />
+                                    <InputError :message="manualForm.errors.quantity"/>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-2 sm:grid-cols-3">
+                                <div class="grid gap-2">
+                                    <Label for="manual_protein">Protein (g)</Label>
+                                    <Input
+                                        id="manual_protein"
+                                        v-model="manualForm.protein_grams"
+                                        name="protein_grams"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                    />
+                                    <InputError :message="manualForm.errors.protein_grams"/>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="manual_carb">Carbs (g)</Label>
+                                    <Input
+                                        id="manual_carb"
+                                        v-model="manualForm.carb_grams"
+                                        name="carb_grams"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                    />
+                                    <InputError :message="manualForm.errors.carb_grams"/>
+                                </div>
+                                <div class="grid gap-2">
+                                    <Label for="manual_fat">Fat (g)</Label>
+                                    <Input
+                                        id="manual_fat"
+                                        v-model="manualForm.fat_grams"
+                                        name="fat_grams"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        required
+                                    />
+                                    <InputError :message="manualForm.errors.fat_grams"/>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-2 sm:grid-cols-2">
+                                <div class="grid gap-2">
+                                    <Label for="manual_consumed_on">Date</Label>
+                                    <Input
+                                        id="manual_consumed_on"
+                                        v-model="manualForm.consumed_on"
+                                        name="consumed_on"
+                                        type="date"
+                                        required
+                                    />
+                                    <InputError :message="manualForm.errors.consumed_on"/>
+                                </div>
+                            </div>
+
+                            <div
+                                class="grid grid-cols-2 gap-3 rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground md:grid-cols-4"
+                            >
+                                <p><strong class="text-foreground">≈</strong> {{ caloriesFormatter.format(manualTotals.calories) }} kcal</p>
+                                <p><strong class="text-foreground">Protein</strong> {{ gramsFormatter.format(manualTotals.protein) }}g</p>
+                                <p><strong class="text-foreground">Carbs</strong> {{ gramsFormatter.format(manualTotals.carbs) }}g</p>
+                                <p><strong class="text-foreground">Fat</strong> {{ gramsFormatter.format(manualTotals.fat) }}g</p>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-3">
+                                <Button
+                                    type="submit"
+                                    class="inline-flex items-center gap-2"
+                                    :disabled="manualForm.processing"
+                                >
+                                    <PlusCircle class="size-4"/>
+                                    Log entry
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </SheetContent>
+        </Sheet>
+        <Sheet>
+            <SheetTrigger as-child>
+                <Button
+                    type="button"
+                    class="justify-center gap-2"
+                >
+                    <Flame class="size-4"/>
+                    Log calories burned
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom">
+                <SheetHeader>
+                    <SheetTitle>
+                        <span class="flex items-center gap-2">
+                            <Flame class="size-5 text-primary"/>
+                            Log calories burned
+                        </span>
+                    </SheetTitle>
+                    <SheetDescription>
+                        Add activity to balance today’s intake.
+                    </SheetDescription>
+                </SheetHeader>
+                <div class="p-4">
+                    <form @submit.prevent="submitBurn" class="grid gap-4 sm:grid-cols-2">
+                        <div class="grid gap-2">
+                            <Label for="burn_calories">Calories burned</Label>
+                            <Input
+                                id="burn_calories"
+                                v-model="burnForm.calories"
+                                name="calories"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                required
+                            />
+                            <InputError :message="burnForm.errors.calories"/>
+                        </div>
+                        <div class="grid gap-2">
+                            <Label for="burn_recorded_on">Date</Label>
+                            <Input
+                                id="burn_recorded_on"
+                                v-model="burnForm.recorded_on"
+                                name="recorded_on"
+                                type="date"
+                                required
+                            />
+                            <InputError :message="burnForm.errors.recorded_on"/>
+                        </div>
+                        <div class="sm:col-span-2 grid gap-2">
+                            <Label for="burn_description">Description (optional)</Label>
+                            <Input
+                                id="burn_description"
+                                v-model="burnForm.description"
+                                name="description"
+                                type="text"
+                                placeholder="Cycling, 30 minutes"
+                            />
+                            <InputError :message="burnForm.errors.description"/>
+                        </div>
+                        <div class="sm:col-span-2 flex items-center gap-3">
+                            <Button
+                                type="submit"
+                                class="inline-flex items-center gap-2"
+                                :disabled="burnForm.processing"
+                            >
+                                <Flame class="size-4"/>
+                                Log calories burned
+                            </Button>
+                        </div>
+                    </form>
+                </div>
+            </SheetContent>
+        </Sheet>
+    </div>
+</nav>
+
+            <div class="grid gap-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Weekly snapshot</CardTitle>
