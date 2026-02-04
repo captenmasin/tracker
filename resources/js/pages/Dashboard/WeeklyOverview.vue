@@ -224,8 +224,8 @@ const foodSortLabel = computed(() => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <Head title="Weekly overview" />
 
-        <div class="space-y-6">
-            <div class="flex flex-col gap-4 rounded-lg border border-border bg-card px-4 py-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-6 mt-4">
+            <div class="flex flex-col gap-4 rounded-lg border border-border bg-card px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 class="text-lg font-semibold text-foreground md:text-xl">Weekly overview</h1>
                     <p class="text-muted-foreground text-sm">
